@@ -1,0 +1,29 @@
+# Unreal generated folders
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vs/
+.vscode/
+
+# Unreal generated files
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.xcodeproj
+*.xcworkspace
+
+# Local machine files
+.DS_Store
+Thumbs.db
+
+# Build/package output
+Build/
+Releases/
+PackagedBuilds/
+
+# Logs and temporary files
+*.log
+*.tmp
