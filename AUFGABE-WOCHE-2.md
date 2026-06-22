@@ -23,9 +23,9 @@ Das Neue daran ist nicht schwererer Code — sondern **als Team an einem Projekt
 
 ## 📅 Montag (Tag 6) — Kickoff
 Heute baut ihr noch nicht das große Ding — heute legt ihr das Fundament.
-- [ ] Jeder pitcht 1–2 Ideen → ihr einigt euch auf **EIN Projekt**, auf das ihr beide Bock habt
-- [ ] **Gemeinsamen Product Brief** schreiben (Vorlage: `PRODUCT-BRIEF-TEMPLATE.md`) — inkl. „Wer macht was?"
-- [ ] **Ein gemeinsames Repo** anlegen, den anderen als Collaborator einladen, leeres Skelett auf Vercel deployen
+- [x] Jeder pitcht 1–2 Ideen → ihr einigt euch auf **EIN Projekt**, auf das ihr beide Bock habt
+- [x] **Gemeinsamen Product Brief** schreiben (Vorlage: `PRODUCT-BRIEF-TEMPLATE.md`) — inkl. „Wer macht was?"
+- [x] **Ein gemeinsames Repo** anlegen, den anderen als Collaborator einladen, leeres Skelett auf Vercel deployen
 - [ ] **PR-Flow einmal üben:** eigenen Branch → kleine Änderung → Pull Request → der andere reviewt + merged
 - [ ] Den Brief in **GitHub Issues** zerlegen und aufteilen
 
