@@ -17,12 +17,12 @@ def ensure_folder(path):
         unreal.EditorAssetLibrary.make_directory(path)
 
 
-def make_material(name, color, roughness=0.85):
+def make_material(name, color, roughness=0.85, texture_strength=0.0, noise_scale=18.0):
     ensure_folder("/Game/Art/Materials")
     path = f"/Game/Art/Materials/{name}"
     existing = unreal.EditorAssetLibrary.load_asset(path)
     if existing:
-        return existing
+        unreal.EditorAssetLibrary.delete_loaded_asset(existing)
 
     tools = unreal.AssetToolsHelpers.get_asset_tools()
     material = tools.create_asset(name, "/Game/Art/Materials", unreal.Material, unreal.MaterialFactoryNew())
@@ -31,9 +31,31 @@ def make_material(name, color, roughness=0.85):
         material, unreal.MaterialExpressionConstant3Vector, -400, 0
     )
     color_expr.set_editor_property("constant", unreal.LinearColor(*color))
-    unreal.MaterialEditingLibrary.connect_material_property(
-        color_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
-    )
+
+    if texture_strength > 0:
+        noise_expr = unreal.MaterialEditingLibrary.create_material_expression(
+            material, unreal.MaterialExpressionNoise, -650, 120
+        )
+        noise_expr.set_editor_property("scale", noise_scale)
+        noise_expr.set_editor_property("levels", 5)
+
+        strength_expr = unreal.MaterialEditingLibrary.create_material_expression(
+            material, unreal.MaterialExpressionConstant, -650, 280
+        )
+        strength_expr.set_editor_property("r", texture_strength)
+
+        multiply_expr = unreal.MaterialEditingLibrary.create_material_expression(
+            material, unreal.MaterialExpressionMultiply, -150, 20
+        )
+        unreal.MaterialEditingLibrary.connect_material_expressions(color_expr, "", multiply_expr, "A")
+        unreal.MaterialEditingLibrary.connect_material_expressions(noise_expr, "", multiply_expr, "B")
+        unreal.MaterialEditingLibrary.connect_material_property(
+            multiply_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
+        )
+    else:
+        unreal.MaterialEditingLibrary.connect_material_property(
+            color_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
+        )
 
     roughness_expr = unreal.MaterialEditingLibrary.create_material_expression(
         material, unreal.MaterialExpressionConstant, -400, 160
@@ -124,24 +146,6 @@ def add_rectangular_hall():
     )
 
 
-def add_floor_layout_zones():
-    # Floor planning only. These are placeholder area markers from the sketch, not furniture.
-    zone_z = 3
-
-    cube("Zone_LivingArea_Yellow", (-860, -115, zone_z), (2.3, 11.0, 0.03), "zone_living")
-
-    cube("Zone_GreenhouseArea_Cyan", (-105, -425, zone_z), (7.2, 2.55, 0.03), "zone_greenhouse")
-
-    cube("Zone_DeskPcArea_Red", (-415, 430, zone_z), (3.6, 1.55, 0.03), "zone_desk")
-
-    cube("Zone_ToolsFertilizer_Brown", (220, 120, zone_z), (1.7, 1.7, 0.03), "zone_tools")
-
-    cube("Zone_Unclear_Orange_Right", (740, 35, zone_z), (4.0, 9.1, 0.03), "zone_unclear")
-    cube("Zone_Unclear_Orange_Bottom", (520, 500, zone_z + 1), (4.8, 2.1, 0.03), "zone_unclear")
-
-    cube("Zone_SpawnMarker_Black", (-520, 65, zone_z + 2), (0.45, 0.45, 0.035), "zone_spawn")
-
-
 def add_daylight():
     atmosphere = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.SkyAtmosphere,
@@ -192,24 +196,17 @@ def main():
         unreal.EditorLevelLibrary.destroy_actor(actor)
 
     MATERIALS = {
-        "floor": make_material("M_Hall_Concrete_Floor", (0.42, 0.40, 0.36, 1), 0.92),
-        "wall": make_material("M_Hall_Warm_Plaster_Wall", (0.72, 0.70, 0.64, 1), 0.88),
-        "zone_living": make_material("M_Zone_Living_Yellow", (1.0, 0.76, 0.03, 1), 0.7),
-        "zone_greenhouse": make_material("M_Zone_Greenhouse_Cyan", (0.0, 0.82, 0.9, 1), 0.7),
-        "zone_desk": make_material("M_Zone_Desk_Red", (1.0, 0.14, 0.10, 1), 0.7),
-        "zone_tools": make_material("M_Zone_Tools_Brown", (0.52, 0.27, 0.11, 1), 0.7),
-        "zone_unclear": make_material("M_Zone_Unclear_Orange", (1.0, 0.50, 0.0, 1), 0.7),
-        "zone_spawn": make_material("M_Zone_Spawn_Black", (0.015, 0.015, 0.015, 1), 0.8),
+        "floor": make_material("M_Hall_Concrete_Floor", (0.55, 0.52, 0.46, 1), 0.94, 1.65, 26.0),
+        "wall": make_material("M_Hall_Warm_Plaster_Wall", (0.80, 0.77, 0.68, 1), 0.9, 1.25, 38.0),
     }
 
     add_rectangular_hall()
-    add_floor_layout_zones()
     add_daylight()
     set_map_game_mode()
 
     unreal.EditorLevelLibrary.save_current_level()
     unreal.EditorAssetLibrary.save_directory("/Game/Art", only_if_is_dirty=False, recursive=True)
-    unreal.log("Created hall map with floor/walls, daylight, spawn, walking GameMode, and floor layout zones.")
+    unreal.log("Created playable hall map: textured floor/walls, daylight, spawn, and walking GameMode.")
 
 
 if __name__ == "__main__":
