@@ -76,9 +76,23 @@ def hide_skeletal_component(component, hidden_mesh):
     component.set_editor_property("cast_static_shadow", False)
 
 
-def configure_camera_component(component):
+def configure_camera_component(component, parent_component=None):
+    if parent_component:
+        try:
+            component.attach_to_component(
+                parent_component,
+                "",
+                unreal.AttachmentRule.KEEP_RELATIVE,
+                unreal.AttachmentRule.KEEP_RELATIVE,
+                unreal.AttachmentRule.KEEP_RELATIVE,
+                False,
+            )
+        except Exception:
+            pass
+
     component.set_editor_property("relative_location", unreal.Vector(0.0, 0.0, CAMERA_HEIGHT_CM))
     component.set_editor_property("relative_rotation", unreal.Rotator(0.0, 0.0, 0.0))
+    component.set_editor_property("use_pawn_control_rotation", True)
 
 
 def invisible_material():
@@ -138,6 +152,7 @@ def configure_character_mesh():
     hidden_mesh = unreal.EditorAssetLibrary.load_asset(MANNY_PLACEHOLDER_MESH)
     if not hidden_mesh:
         raise RuntimeError(f"Missing placeholder mesh: {MANNY_PLACEHOLDER_MESH}")
+    capsule_component = cdo.get_component_by_class(unreal.CapsuleComponent)
 
     for property_name in ("base_eye_height", "BaseEyeHeight"):
         try:
@@ -152,7 +167,7 @@ def configure_character_mesh():
         changed.add(component.get_path_name())
 
     for component in cdo.get_components_by_class(unreal.CameraComponent):
-        configure_camera_component(component)
+        configure_camera_component(component, capsule_component)
         changed.add(component.get_path_name())
 
     for property_name in FIRST_PERSON_MESH_PROPERTIES:
@@ -188,7 +203,7 @@ def configure_character_mesh():
                 hide_skeletal_component(component, hidden_mesh)
                 changed.add(component.get_path_name())
             elif isinstance(component, unreal.CameraComponent):
-                configure_camera_component(component)
+                configure_camera_component(component, capsule_component)
                 changed.add(component.get_path_name())
 
     subobject_subsystem = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
@@ -207,14 +222,15 @@ def configure_character_mesh():
                 hide_skeletal_component(component, hidden_mesh)
                 changed.add(component.get_path_name())
             elif isinstance(component, unreal.CameraComponent):
-                configure_camera_component(component)
+                configure_camera_component(component, capsule_component)
                 changed.add(component.get_path_name())
 
     unreal.BlueprintEditorLibrary.compile_blueprint(character_bp)
     unreal.EditorAssetLibrary.save_loaded_asset(character_bp)
     unreal.log(
         "Configured "
-        f"{len(changed)} first-person component(s) with invisible character mesh and camera height {CAMERA_HEIGHT_CM}cm."
+        f"{len(changed)} first-person component(s) with invisible character mesh "
+        f"and centered camera height {CAMERA_HEIGHT_CM}cm."
     )
 
 

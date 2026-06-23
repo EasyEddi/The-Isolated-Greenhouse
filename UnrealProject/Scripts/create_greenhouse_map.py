@@ -84,16 +84,18 @@ def pseudo_noise(x, y, seed):
 
 def make_damaged_brick_png(path, size=768, seed=73):
     rng = random.Random(seed)
-    brick_w = 132
-    brick_h = 58
-    mortar = 6
+    # The cube wall UVs stretch the square texture across a long rectangular wall.
+    # Narrow source bricks compensate for that so they read as normal brick courses in-game.
+    brick_w = 22
+    brick_h = 34
+    mortar = 3
     damage_centers = []
     for _ in range(6):
         damage_centers.append(
             (
-                rng.randint(80, size - 80),
-                rng.randint(80, size - 80),
-                rng.randint(45, 125),
+                rng.randint(60, size - 60),
+                rng.randint(60, size - 60),
+                rng.randint(28, 92),
                 rng.uniform(0.45, 1.05),
             )
         )
