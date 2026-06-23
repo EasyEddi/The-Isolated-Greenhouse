@@ -199,7 +199,7 @@ def cube(label, location, scale, mat_name):
     actor.set_actor_scale3d(unreal.Vector(*scale))
     comp = actor.get_component_by_class(unreal.StaticMeshComponent)
     comp.set_static_mesh(load_asset(CUBE))
-    comp.set_editor_property("mobility", unreal.ComponentMobility.STATIC)
+    comp.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
     comp.set_material(0, material(mat_name))
     return actor
 
@@ -215,6 +215,7 @@ def set_map_game_mode():
     world = unreal.EditorLevelLibrary.get_editor_world()
     world_settings = world.get_world_settings()
     world_settings.set_editor_property("default_game_mode", game_mode_class)
+    world_settings.set_editor_property("force_no_precomputed_lighting", True)
 
 
 def add_rectangular_hall():
@@ -273,6 +274,7 @@ def add_daylight():
     )
     sky.set_actor_label("Lighting_Daytime_SkyLight")
     sky_comp = sky.get_component_by_class(unreal.SkyLightComponent)
+    sky_comp.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
     sky_comp.set_editor_property("intensity", 1.4)
 
     sun = unreal.EditorLevelLibrary.spawn_actor_from_class(
@@ -282,6 +284,7 @@ def add_daylight():
     )
     sun.set_actor_label("Lighting_Sun_Daylight")
     sun_comp = sun.get_component_by_class(unreal.DirectionalLightComponent)
+    sun_comp.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
     sun_comp.set_editor_property("intensity", 6.0)
     sun_comp.set_editor_property("light_color", unreal.Color(255, 246, 226, 255))
 

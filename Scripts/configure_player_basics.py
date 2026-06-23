@@ -3,7 +3,8 @@ import unreal
 
 MOUSE_LOOK_CONTEXT = "/Game/Input/IMC_MouseLook"
 FIRST_PERSON_CHARACTER = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
-MOUSE_SENSITIVITY = 0.15
+CHARACTER_MESH = "/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple"
+MOUSE_SENSITIVITY = 0.12
 
 
 def configure_mouse_sensitivity():
@@ -46,27 +47,32 @@ def configure_mouse_sensitivity():
     unreal.log(f"Mouse look sensitivity scaled to {MOUSE_SENSITIVITY}.")
 
 
-def hide_first_person_hands():
+def configure_character_mesh():
     character_bp = unreal.EditorAssetLibrary.load_asset(FIRST_PERSON_CHARACTER)
     if not character_bp:
         raise RuntimeError(f"Missing first person character blueprint: {FIRST_PERSON_CHARACTER}")
+
+    character_mesh = unreal.EditorAssetLibrary.load_asset(CHARACTER_MESH)
+    if not character_mesh:
+        raise RuntimeError(f"Missing character mesh: {CHARACTER_MESH}")
 
     generated_class = character_bp.generated_class()
     cdo = unreal.get_default_object(generated_class)
     changed = 0
 
     for component in cdo.get_components_by_class(unreal.SkeletalMeshComponent):
-        component.set_editor_property("visible", False)
-        component.set_editor_property("hidden_in_game", True)
+        component.set_editor_property("skeletal_mesh", character_mesh)
+        component.set_editor_property("visible", True)
+        component.set_editor_property("hidden_in_game", False)
         component.set_editor_property("cast_shadow", False)
         component.set_editor_property("cast_dynamic_shadow", False)
         component.set_editor_property("cast_static_shadow", False)
         changed += 1
 
     unreal.EditorAssetLibrary.save_loaded_asset(character_bp)
-    unreal.log(f"Disabled visibility and shadows for {changed} first-person skeletal mesh component(s).")
+    unreal.log(f"Configured {changed} character skeletal mesh component(s) with Quinn mesh and shadows disabled.")
 
 
 if __name__ == "__main__":
     configure_mouse_sensitivity()
-    hide_first_person_hands()
+    configure_character_mesh()
