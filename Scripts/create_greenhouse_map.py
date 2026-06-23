@@ -1,12 +1,19 @@
 import math
+import os
+import random
+import struct
+import zlib
 
 import unreal
 
 
 PROJECT_MAP = "/Game/Maps/L_Greenhouse_MVP"
 CUBE = "/Engine/BasicShapes/Cube.Cube"
-SPHERE = "/Engine/BasicShapes/Sphere.Sphere"
-CYLINDER = "/Engine/BasicShapes/Cylinder.Cylinder"
+GENERATED_TEXTURE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "Intermediate",
+    "GeneratedTextures",
+)
 
 
 def load_asset(path):
@@ -21,44 +28,154 @@ def ensure_folder(path):
         unreal.EditorAssetLibrary.make_directory(path)
 
 
-def make_material(name, color, opacity=1.0):
+def write_png(path, width, height, pixels):
+    def chunk(tag, data):
+        return (
+            struct.pack(">I", len(data))
+            + tag
+            + data
+            + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+        )
+
+    raw_rows = []
+    for y in range(height):
+        row = bytearray([0])
+        for x in range(width):
+            row.extend(pixels[y * width + x])
+        raw_rows.append(bytes(row))
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as handle:
+        handle.write(b"\x89PNG\r\n\x1a\n")
+        handle.write(chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)))
+        handle.write(chunk(b"IDAT", zlib.compress(b"".join(raw_rows), 9)))
+        handle.write(chunk(b"IEND", b""))
+
+
+def clamp_channel(value):
+    return max(0, min(255, int(value)))
+
+
+def make_rubber_floor_png(path, size=768):
+    rng = random.Random(42)
+    pixels = []
+    for y in range(size):
+        for x in range(size):
+            seam = min(x % 192, y % 192)
+            seam_line = 22 if seam < 3 else 0
+            scuff = 10 * math.sin((x * 0.071) + (y * 0.037)) + 6 * math.sin((x - y) * 0.019)
+            speck = rng.randint(-10, 12)
+            base = 55 + scuff + speck - seam_line
+            pixels.append(
+                (
+                    clamp_channel(base),
+                    clamp_channel(base + 4),
+                    clamp_channel(base + 3),
+                    255,
+                )
+            )
+    write_png(path, size, size, pixels)
+
+
+def make_damaged_brick_png(path, size=1024):
+    rng = random.Random(73)
+    brick_w = 160
+    brick_h = 70
+    mortar = 8
+    damage_centers = [(210, 240, 130), (760, 350, 105), (510, 720, 150), (875, 825, 90)]
+    pixels = []
+
+    for y in range(size):
+        row = y // brick_h
+        offset = (brick_w // 2) if row % 2 else 0
+        for x in range(size):
+            local_x = (x + offset) % brick_w
+            local_y = y % brick_h
+            is_mortar = local_x < mortar or local_y < mortar
+
+            chip_strength = 0.0
+            for cx, cy, radius in damage_centers:
+                distance = math.hypot(x - cx, y - cy)
+                if distance < radius:
+                    edge_noise = 0.72 + 0.22 * math.sin(x * 0.081) + 0.18 * math.sin(y * 0.067)
+                    chip_strength = max(chip_strength, max(0.0, (1.0 - distance / radius) * edge_noise))
+
+            if is_mortar:
+                base = 88 + rng.randint(-10, 8)
+                color = (base, base - 2, base - 7)
+            else:
+                variation = 18 * math.sin((x // 9) * 0.8) + 10 * math.sin((y // 11) * 0.7) + rng.randint(-14, 14)
+                color = (145 + variation, 68 + variation * 0.35, 45 + variation * 0.25)
+
+            if chip_strength > 0.18 and not is_mortar:
+                plaster = 150 + rng.randint(-18, 20)
+                color = (
+                    color[0] * (1 - chip_strength) + plaster * chip_strength,
+                    color[1] * (1 - chip_strength) + (plaster - 8) * chip_strength,
+                    color[2] * (1 - chip_strength) + (plaster - 18) * chip_strength,
+                )
+
+            pixels.append(
+                (
+                    clamp_channel(color[0]),
+                    clamp_channel(color[1]),
+                    clamp_channel(color[2]),
+                    255,
+                )
+            )
+
+    write_png(path, size, size, pixels)
+
+
+def import_texture(name, generator):
+    ensure_folder("/Game/Art/Textures")
+    source_path = os.path.join(GENERATED_TEXTURE_DIR, f"{name}.png")
+    generator(source_path)
+
+    destination_path = f"/Game/Art/Textures/{name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(destination_path):
+        unreal.EditorAssetLibrary.delete_asset(destination_path)
+
+    task = unreal.AssetImportTask()
+    task.set_editor_property("filename", source_path)
+    task.set_editor_property("destination_path", "/Game/Art/Textures")
+    task.set_editor_property("destination_name", name)
+    task.set_editor_property("automated", True)
+    task.set_editor_property("replace_existing", True)
+    task.set_editor_property("save", True)
+
+    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    texture = unreal.EditorAssetLibrary.load_asset(destination_path)
+    if not texture:
+        raise RuntimeError(f"Failed to import texture: {source_path}")
+    return texture
+
+
+def make_textured_material(name, texture, roughness=0.85):
     ensure_folder("/Game/Art/Materials")
     path = f"/Game/Art/Materials/{name}"
     existing = unreal.EditorAssetLibrary.load_asset(path)
     if existing:
-        return existing
+        unreal.EditorAssetLibrary.delete_loaded_asset(existing)
 
     tools = unreal.AssetToolsHelpers.get_asset_tools()
     material = tools.create_asset(name, "/Game/Art/Materials", unreal.Material, unreal.MaterialFactoryNew())
-    material.set_editor_property("use_material_attributes", False)
-    material.set_editor_property("two_sided", True)
 
-    color_expr = unreal.MaterialEditingLibrary.create_material_expression(
-        material, unreal.MaterialExpressionConstant3Vector, -400, 0
+    texture_expr = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionTextureSample, -450, 0
     )
-    color_expr.set_editor_property("constant", unreal.LinearColor(*color))
+    texture_expr.set_editor_property("texture", texture)
     unreal.MaterialEditingLibrary.connect_material_property(
-        color_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
+        texture_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
     )
 
     roughness_expr = unreal.MaterialEditingLibrary.create_material_expression(
         material, unreal.MaterialExpressionConstant, -400, 160
     )
-    roughness_expr.set_editor_property("r", 0.72)
+    roughness_expr.set_editor_property("r", roughness)
     unreal.MaterialEditingLibrary.connect_material_property(
         roughness_expr, "", unreal.MaterialProperty.MP_ROUGHNESS
     )
-
-    if opacity < 1.0:
-        material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
-        material.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_SURFACE)
-        opacity_expr = unreal.MaterialEditingLibrary.create_material_expression(
-            material, unreal.MaterialExpressionConstant, -400, 320
-        )
-        opacity_expr.set_editor_property("r", opacity)
-        unreal.MaterialEditingLibrary.connect_material_property(
-            opacity_expr, "", unreal.MaterialProperty.MP_OPACITY
-        )
 
     unreal.MaterialEditingLibrary.layout_material_expressions(material)
     unreal.EditorAssetLibrary.save_loaded_asset(material)
@@ -72,187 +189,111 @@ def material(name):
     return MATERIALS[name]
 
 
-def spawn_mesh(label, mesh_path, location, scale, mat_name=None, rotation=(0, 0, 0)):
-    mesh = load_asset(mesh_path)
+def cube(label, location, scale, mat_name):
     actor = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.StaticMeshActor,
         unreal.Vector(*location),
-        unreal.Rotator(rotation[0], rotation[1], rotation[2]),
+        unreal.Rotator(0, 0, 0),
     )
     actor.set_actor_label(label)
     actor.set_actor_scale3d(unreal.Vector(*scale))
     comp = actor.get_component_by_class(unreal.StaticMeshComponent)
-    comp.set_static_mesh(mesh)
-    comp.set_editor_property("mobility", unreal.ComponentMobility.STATIC)
-    if mat_name:
-        comp.set_material(0, material(mat_name))
+    comp.set_static_mesh(load_asset(CUBE))
+    comp.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
+    comp.set_material(0, material(mat_name))
     return actor
 
 
-def cube(label, location, scale, mat_name=None, rotation=(0, 0, 0)):
-    return spawn_mesh(label, CUBE, location, scale, mat_name, rotation)
-
-
-def cylinder(label, location, scale, mat_name=None, rotation=(0, 0, 0)):
-    return spawn_mesh(label, CYLINDER, location, scale, mat_name, rotation)
-
-
-def sphere(label, location, scale, mat_name=None, rotation=(0, 0, 0)):
-    return spawn_mesh(label, SPHERE, location, scale, mat_name, rotation)
-
-
-def text(label, body, location, size=42, rotation=(0, 0, 0), color=(0.85, 0.95, 0.82, 1)):
-    actor = unreal.EditorLevelLibrary.spawn_actor_from_class(
-        unreal.TextRenderActor,
-        unreal.Vector(*location),
-        unreal.Rotator(rotation[0], rotation[1], rotation[2]),
+def set_map_game_mode():
+    game_mode_class = unreal.EditorAssetLibrary.load_blueprint_class(
+        "/Game/FirstPerson/Blueprints/BP_FirstPersonGameMode"
     )
-    actor.set_actor_label(label)
-    comp = actor.get_component_by_class(unreal.TextRenderComponent)
-    comp.set_text(body)
-    comp.set_horizontal_alignment(unreal.HorizTextAligment.EHTA_CENTER)
-    comp.set_world_size(size)
-    comp.set_text_render_color(unreal.Color(
-        int(color[0] * 255), int(color[1] * 255), int(color[2] * 255), int(color[3] * 255)
-    ))
-    return actor
+    if not game_mode_class:
+        unreal.log_warning("First-person GameMode not found; map will still open, but PIE may use the default pawn.")
+        return
+
+    world = unreal.EditorLevelLibrary.get_editor_world()
+    world_settings = world.get_world_settings()
+    world_settings.set_editor_property("default_game_mode", game_mode_class)
+    world_settings.set_editor_property("force_no_precomputed_lighting", True)
 
 
-def rect_light(label, location, rotation, intensity, color, width=600, height=400):
-    actor = unreal.EditorLevelLibrary.spawn_actor_from_class(
-        unreal.RectLight,
-        unreal.Vector(*location),
-        unreal.Rotator(rotation[0], rotation[1], rotation[2]),
+def add_rectangular_hall():
+    # Unreal cube base size is 100cm. This hall is 24m x 16m with 4m high walls.
+    hall_length = 2400
+    hall_width = 1600
+    wall_thickness = 30
+    wall_height = 400
+    floor_thickness = 20
+
+    cube(
+        "Hall_Floor_rubber_surface",
+        (0, 0, -floor_thickness / 2),
+        (hall_length / 100, hall_width / 100, floor_thickness / 100),
+        "floor",
     )
-    actor.set_actor_label(label)
-    comp = actor.get_component_by_class(unreal.RectLightComponent)
-    comp.set_editor_property("intensity", intensity)
-    comp.set_editor_property("light_color", unreal.Color(
-        int(color[0] * 255), int(color[1] * 255), int(color[2] * 255), 255
-    ))
-    comp.set_editor_property("source_width", width)
-    comp.set_editor_property("source_height", height)
-    return actor
+
+    cube(
+        "Hall_Back_wall_damaged_brick",
+        (-hall_length / 2, 0, wall_height / 2),
+        (wall_thickness / 100, hall_width / 100, wall_height / 100),
+        "wall",
+    )
+    cube(
+        "Hall_Front_wall_damaged_brick",
+        (hall_length / 2, 0, wall_height / 2),
+        (wall_thickness / 100, hall_width / 100, wall_height / 100),
+        "wall",
+    )
+    cube(
+        "Hall_Left_wall_damaged_brick",
+        (0, -hall_width / 2, wall_height / 2),
+        (hall_length / 100, wall_thickness / 100, wall_height / 100),
+        "wall",
+    )
+    cube(
+        "Hall_Right_wall_damaged_brick",
+        (0, hall_width / 2, wall_height / 2),
+        (hall_length / 100, wall_thickness / 100, wall_height / 100),
+        "wall",
+    )
 
 
-def point_light(label, location, intensity, radius, color):
-    actor = unreal.EditorLevelLibrary.spawn_actor_from_class(
-        unreal.PointLight,
-        unreal.Vector(*location),
+def add_daylight():
+    atmosphere = unreal.EditorLevelLibrary.spawn_actor_from_class(
+        unreal.SkyAtmosphere,
+        unreal.Vector(0, 0, 0),
         unreal.Rotator(0, 0, 0),
     )
-    actor.set_actor_label(label)
-    comp = actor.get_component_by_class(unreal.PointLightComponent)
-    comp.set_editor_property("intensity", intensity)
-    comp.set_editor_property("attenuation_radius", radius)
-    comp.set_editor_property("light_color", unreal.Color(
-        int(color[0] * 255), int(color[1] * 255), int(color[2] * 255), 255
-    ))
-    return actor
+    atmosphere.set_actor_label("Lighting_Daytime_SkyAtmosphere")
 
-
-def add_greenhouse_shell():
-    cube("GH_Floor_warm_concrete", (0, 0, -10), (24, 16, 0.2), "floor")
-    cube("GH_Back_wall_plaster", (-1150, 0, 250), (0.25, 16, 5), "wall")
-    cube("GH_Left_low_wall", (0, -780, 165), (24, 0.25, 3.3), "wall")
-    cube("GH_Right_low_wall", (0, 780, 165), (24, 0.25, 3.3), "wall")
-    cube("GH_Front_entry_wall_left", (900, -500, 200), (5, 0.25, 4), "wall", (0, 0, 90))
-    cube("GH_Front_entry_wall_right", (900, 500, 200), (5, 0.25, 4), "wall", (0, 0, 90))
-
-    for y in [-520, 0, 520]:
-        cube(f"GH_Glass_roof_panel_{y}", (0, y, 555), (22, 3.8, 0.08), "glass", (0, 18, 0))
-        cube(f"GH_Roof_metal_rib_{y}", (0, y, 580), (22.5, 0.08, 0.12), "metal", (0, 18, 0))
-
-    for x in [-900, -450, 0, 450, 900]:
-        cube(f"GH_Left_window_frame_{x}", (x, -780, 410), (0.08, 0.18, 3), "metal")
-        cube(f"GH_Right_window_frame_{x}", (x, 780, 410), (0.08, 0.18, 3), "metal")
-        cube(f"GH_Glass_wall_left_{x}", (x, -790, 390), (3.6, 0.05, 2.6), "glass")
-        cube(f"GH_Glass_wall_right_{x}", (x, 790, 390), (3.6, 0.05, 2.6), "glass")
-
-    cube("GH_Double_door_frame", (1120, 0, 180), (0.15, 3.4, 3.6), "metal")
-    cube("GH_Double_door_glass_left", (1130, -95, 170), (0.08, 1.35, 3.0), "glass")
-    cube("GH_Double_door_glass_right", (1130, 95, 170), (0.08, 1.35, 3.0), "glass")
-
-
-def add_work_zones():
-    cube("Worktable_main_wood_top", (-300, -250, 110), (5.4, 1.65, 0.18), "wood")
-    for x in [-530, -70]:
-        for y in [-315, -185]:
-            cube(f"Worktable_leg_{x}_{y}", (x, y, 55), (0.16, 0.16, 1.05), "wood")
-
-    cube("Computer_desk_top_order_station", (-620, 420, 105), (3.4, 1.35, 0.18), "wood")
-    for x in [-760, -480]:
-        for y in [365, 475]:
-            cube(f"Computer_desk_leg_{x}_{y}", (x, y, 55), (0.14, 0.14, 1), "wood")
-    cube("Computer_monitor_active_order", (-620, 375, 175), (1.25, 0.08, 0.75), "screen")
-    cube("Computer_keyboard", (-620, 305, 124), (1.45, 0.45, 0.06), "dark")
-    text("Label_Computer_OrderUI", "ORDER COMPUTER\n3 MVP ORDERS", (-620, 292, 225), 30, (0, 0, 0))
-
-    cube("Packstation_counter", (600, 420, 100), (3.8, 1.55, 0.18), "wood")
-    cube("Packstation_box_open", (520, 400, 150), (1.15, 0.9, 0.38), "cardboard")
-    cube("Packstation_box_lid_left", (460, 400, 185), (0.08, 0.9, 0.32), "cardboard", (0, 0, 22))
-    cube("Packstation_label_panel", (655, 340, 150), (1.4, 0.08, 0.55), "screen")
-    text("Label_Packstation", "PACK + SHIP\nOFFSHOOTS", (600, 325, 215), 32, (0, 0, 0))
-
-    for i, x in enumerate([-850, -600, -350, -100, 150, 400, 650]):
-        cube(f"Floor_Path_Marker_{i}", (x, 0, 2), (1.15, 0.18, 0.025), "path")
-
-
-def add_plants():
-    cylinder("Monstera_main_pot", (-320, -250, 150), (0.58, 0.58, 0.58), "pot")
-    cylinder("Monstera_soil", (-320, -250, 183), (0.5, 0.5, 0.06), "soil")
-    cylinder("Monstera_stem_cluster", (-320, -250, 235), (0.08, 0.08, 1.05), "stem")
-
-    leaf_angles = [-75, -40, 0, 35, 70, 115]
-    for i, yaw in enumerate(leaf_angles):
-        radius = 72 + (i % 2) * 22
-        x = -320 + math.cos(math.radians(yaw)) * radius
-        y = -250 + math.sin(math.radians(yaw)) * radius
-        z = 260 + (i % 3) * 22
-        sphere(f"Monstera_leaf_ready_{i}", (x, y, z), (0.72, 0.26, 0.055), "leaf", (18, yaw, 0))
-    text("Label_Monstera", "MONSTERA\nMOTHER PLANT", (-320, -505, 250), 34, (0, 0, 0))
-
-    shelf_xs = [-760, -520, -280, -40, 200, 440]
-    for row, y in enumerate([-610, 610]):
-        cube(f"Plant_shelf_{row}_bottom", (-270, y, 95), (10.8, 0.55, 0.12), "metal")
-        cube(f"Plant_shelf_{row}_top", (-270, y, 205), (10.8, 0.55, 0.12), "metal")
-        for x in shelf_xs:
-            cylinder(f"Small_pot_{row}_{x}", (x, y, 130), (0.32, 0.32, 0.32), "pot")
-            sphere(f"Small_plant_{row}_{x}", (x, y, 180), (0.38, 0.24, 0.2), "leaf")
-
-
-def add_lighting_and_markers():
     sky = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.SkyLight,
-        unreal.Vector(0, 0, 650),
+        unreal.Vector(0, 0, 600),
         unreal.Rotator(0, 0, 0),
     )
-    sky.set_actor_label("Lighting_Skylight_soft_greenhouse")
+    sky.set_actor_label("Lighting_Daytime_SkyLight")
     sky_comp = sky.get_component_by_class(unreal.SkyLightComponent)
-    sky_comp.set_editor_property("intensity", 1.2)
+    sky_comp.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
+    sky_comp.set_editor_property("intensity", 1.4)
 
     sun = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.DirectionalLight,
-        unreal.Vector(0, 0, 900),
-        unreal.Rotator(-38, -32, 0),
+        unreal.Vector(0, 0, 800),
+        unreal.Rotator(-45, -35, 0),
     )
-    sun.set_actor_label("Lighting_Warm_late_morning_sun")
+    sun.set_actor_label("Lighting_Sun_Daylight")
     sun_comp = sun.get_component_by_class(unreal.DirectionalLightComponent)
-    sun_comp.set_editor_property("intensity", 3.0)
-    sun_comp.set_editor_property("light_color", unreal.Color(255, 226, 184, 255))
+    sun_comp.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
+    sun_comp.set_editor_property("intensity", 6.0)
+    sun_comp.set_editor_property("light_color", unreal.Color(255, 246, 226, 255))
 
-    rect_light("Lighting_Worktable_warm_panel", (-300, -240, 460), (-90, 0, 0), 350, (1.0, 0.78, 0.52), 420, 260)
-    rect_light("Lighting_Computer_soft_panel", (-620, 420, 330), (-80, 0, 0), 180, (0.72, 0.95, 1.0), 260, 170)
-    point_light("Lighting_Packstation_status_glow", (640, 350, 210), 180, 280, (0.55, 0.9, 0.7))
-
-    pawn = unreal.EditorLevelLibrary.spawn_actor_from_class(
+    start = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.PlayerStart,
-        unreal.Vector(900, 0, 95),
-        unreal.Rotator(0, 180, 0),
+        unreal.Vector(-520, 65, 95),
+        unreal.Rotator(0, 0, 0),
     )
-    pawn.set_actor_label("PlayerStart_Facing_MVP_Workflow")
-
-    text("Label_MainLoop", "CARE PLANT  ->  CUT OFFSHOOT  ->  PACK ORDER", (20, 0, 335), 42, (0, 180, 0))
+    start.set_actor_label("PlayerStart_Main_Hall")
 
 
 def main():
@@ -270,29 +311,25 @@ def main():
         unreal.EditorLevelLibrary.destroy_actor(actor)
 
     MATERIALS = {
-        "floor": make_material("M_Warm_Concrete", (0.46, 0.42, 0.35, 1)),
-        "wall": make_material("M_Soft_Off_White", (0.78, 0.77, 0.68, 1)),
-        "glass": make_material("M_Greenhouse_Glass", (0.55, 0.83, 0.78, 1), 0.32),
-        "metal": make_material("M_Dark_Green_Metal", (0.08, 0.18, 0.14, 1)),
-        "wood": make_material("M_Workbench_Wood", (0.45, 0.30, 0.18, 1)),
-        "leaf": make_material("M_Plant_Leaf", (0.08, 0.38, 0.18, 1)),
-        "stem": make_material("M_Plant_Stem", (0.14, 0.42, 0.16, 1)),
-        "pot": make_material("M_Terracotta_Pot", (0.55, 0.23, 0.13, 1)),
-        "soil": make_material("M_Dark_Soil", (0.09, 0.06, 0.035, 1)),
-        "screen": make_material("M_Soft_Blue_Screen", (0.18, 0.48, 0.58, 1)),
-        "dark": make_material("M_Warm_Dark_Detail", (0.035, 0.04, 0.04, 1)),
-        "cardboard": make_material("M_Cardboard", (0.54, 0.39, 0.22, 1)),
-        "path": make_material("M_Subtle_Path_Marker", (0.50, 0.68, 0.43, 1)),
+        "floor": make_textured_material(
+            "M_Hall_Rubber_Floor",
+            import_texture("T_Hall_Rubber_Floor", make_rubber_floor_png),
+            0.96,
+        ),
+        "wall": make_textured_material(
+            "M_Hall_Damaged_Brick_Wall",
+            import_texture("T_Hall_Damaged_Brick_Wall", make_damaged_brick_png),
+            0.91,
+        ),
     }
 
-    add_greenhouse_shell()
-    add_work_zones()
-    add_plants()
-    add_lighting_and_markers()
+    add_rectangular_hall()
+    add_daylight()
+    set_map_game_mode()
 
     unreal.EditorLevelLibrary.save_current_level()
     unreal.EditorAssetLibrary.save_directory("/Game/Art", only_if_is_dirty=False, recursive=True)
-    unreal.log("Created MVP greenhouse map with shell, work zones, plant props, lights, and labels.")
+    unreal.log("Created playable hall map: textured floor/walls, daylight, spawn, and walking GameMode.")
 
 
 if __name__ == "__main__":
