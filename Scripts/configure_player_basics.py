@@ -3,7 +3,6 @@ import unreal
 
 MOUSE_LOOK_CONTEXT = "/Game/Input/IMC_MouseLook"
 FIRST_PERSON_CHARACTER = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
-CHARACTER_MESH = "/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple"
 MANNY_PLACEHOLDER_MESH = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"
 INVISIBLE_MATERIAL = "/Game/Characters/Mannequins/Materials/M_Invisible_FirstPersonPlaceholder"
 MOUSE_SENSITIVITY = 0.12
@@ -55,8 +54,13 @@ def configure_mouse_sensitivity():
     unreal.log(f"Mouse look sensitivity scaled to {MOUSE_SENSITIVITY}.")
 
 
-def hide_skeletal_component(component, character_mesh):
-    component.set_editor_property("skeletal_mesh", character_mesh)
+def hide_skeletal_component(component):
+    for mesh_property in ("skeletal_mesh_asset", "skeletal_mesh"):
+        try:
+            component.set_editor_property(mesh_property, None)
+        except Exception:
+            pass
+
     component.set_editor_property("visible", False)
     component.set_editor_property("hidden_in_game", True)
     component.set_editor_property("owner_no_see", True)
@@ -68,30 +72,30 @@ def hide_skeletal_component(component, character_mesh):
 
 def invisible_material():
     material = unreal.EditorAssetLibrary.load_asset(INVISIBLE_MATERIAL)
-    if material:
-        return material
+    if not material:
+        asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
+        material = asset_tools.create_asset(
+            asset_name="M_Invisible_FirstPersonPlaceholder",
+            package_path="/Game/Characters/Mannequins/Materials",
+            asset_class=unreal.Material,
+            factory=unreal.MaterialFactoryNew(),
+        )
 
-    asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
-    material = asset_tools.create_asset(
-        asset_name="M_Invisible_FirstPersonPlaceholder",
-        package_path="/Game/Characters/Mannequins/Materials",
-        asset_class=unreal.Material,
-        factory=unreal.MaterialFactoryNew(),
-    )
-    material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
-    material.set_editor_property("two_sided", True)
+    material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
+    material.set_editor_property("two_sided", False)
+    material.set_editor_property("opacity_mask_clip_value", 0.5)
 
-    opacity = unreal.MaterialEditingLibrary.create_material_expression(
+    opacity_mask = unreal.MaterialEditingLibrary.create_material_expression(
         material,
         unreal.MaterialExpressionConstant,
         -300,
         0,
     )
-    opacity.set_editor_property("r", 0.0)
+    opacity_mask.set_editor_property("r", 0.0)
     unreal.MaterialEditingLibrary.connect_material_property(
-        opacity,
+        opacity_mask,
         "",
-        unreal.MaterialProperty.MP_OPACITY,
+        unreal.MaterialProperty.MP_OPACITY_MASK,
     )
     unreal.MaterialEditingLibrary.recompile_material(material)
     unreal.EditorAssetLibrary.save_loaded_asset(material)
@@ -110,7 +114,7 @@ def hide_manny_placeholder_asset():
     manny_mesh.set_editor_property("materials", materials)
 
     unreal.EditorAssetLibrary.save_loaded_asset(manny_mesh)
-    unreal.log("Assigned invisible material to SKM_Manny_Simple placeholder mesh.")
+    unreal.log("Assigned fully masked invisible material to SKM_Manny_Simple placeholder mesh.")
 
 
 def configure_character_mesh():
@@ -118,16 +122,12 @@ def configure_character_mesh():
     if not character_bp:
         raise RuntimeError(f"Missing first person character blueprint: {FIRST_PERSON_CHARACTER}")
 
-    character_mesh = unreal.EditorAssetLibrary.load_asset(CHARACTER_MESH)
-    if not character_mesh:
-        raise RuntimeError(f"Missing character mesh: {CHARACTER_MESH}")
-
     generated_class = character_bp.generated_class()
     cdo = unreal.get_default_object(generated_class)
     changed = set()
 
     for component in cdo.get_components_by_class(unreal.SkeletalMeshComponent):
-        hide_skeletal_component(component, character_mesh)
+        hide_skeletal_component(component)
         changed.add(component.get_path_name())
 
     for property_name in FIRST_PERSON_MESH_PROPERTIES:
@@ -137,7 +137,7 @@ def configure_character_mesh():
             continue
 
         if isinstance(component, unreal.SkeletalMeshComponent):
-            hide_skeletal_component(component, character_mesh)
+            hide_skeletal_component(component)
             changed.add(component.get_path_name())
 
     construction_script = None
@@ -160,13 +160,13 @@ def configure_character_mesh():
                 component = None
 
             if isinstance(component, unreal.SkeletalMeshComponent):
-                hide_skeletal_component(component, character_mesh)
+                hide_skeletal_component(component)
                 changed.add(component.get_path_name())
 
     unreal.EditorAssetLibrary.save_loaded_asset(character_bp)
     unreal.log(
         "Configured "
-        f"{len(changed)} character skeletal mesh component(s) with Quinn mesh hidden from first-person view and shadows disabled."
+        f"{len(changed)} character skeletal mesh component(s) with no first-person mesh and shadows disabled."
     )
 
 
