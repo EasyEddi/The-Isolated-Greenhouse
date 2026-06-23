@@ -215,7 +215,7 @@ def material(name):
     return MATERIALS[name]
 
 
-def cube(label, location, scale, mat_name):
+def cube(label, location, scale, mat_name, visible=True):
     actor = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.StaticMeshActor,
         unreal.Vector(*location),
@@ -229,6 +229,10 @@ def cube(label, location, scale, mat_name):
     actor.set_actor_enable_collision(True)
     comp.set_collision_profile_name("BlockAll")
     comp.set_material(0, material(mat_name))
+    if not visible:
+        actor.set_actor_hidden_in_game(True)
+        comp.set_editor_property("visible", False)
+        comp.set_editor_property("hidden_in_game", True)
     return actor
 
 
@@ -251,6 +255,8 @@ def add_rectangular_hall():
     hall_length = 2400
     hall_width = 1600
     wall_thickness = 120
+    collision_guard_thickness = 20
+    collision_guard_offset = 65
     wall_height = 520
     floor_thickness = 20
     half_length = hall_length / 2
@@ -287,6 +293,37 @@ def add_rectangular_hall():
         (0, half_width + half_wall, wall_height / 2),
         (hall_length / 100, wall_thickness / 100, wall_height / 100),
         "wall_right",
+    )
+
+    # First-person cameras can clip into a visible wall before the player capsule feels blocked.
+    # These invisible blockers stop the pawn slightly inside the hall so the view stays in-bounds.
+    cube(
+        "Hall_Back_wall_camera_guard",
+        (-half_length + collision_guard_offset, 0, wall_height / 2),
+        (collision_guard_thickness / 100, hall_width / 100, wall_height / 100),
+        "wall_back",
+        visible=False,
+    )
+    cube(
+        "Hall_Front_wall_camera_guard",
+        (half_length - collision_guard_offset, 0, wall_height / 2),
+        (collision_guard_thickness / 100, hall_width / 100, wall_height / 100),
+        "wall_front",
+        visible=False,
+    )
+    cube(
+        "Hall_Left_wall_camera_guard",
+        (0, -half_width + collision_guard_offset, wall_height / 2),
+        (hall_length / 100, collision_guard_thickness / 100, wall_height / 100),
+        "wall_left",
+        visible=False,
+    )
+    cube(
+        "Hall_Right_wall_camera_guard",
+        (0, half_width - collision_guard_offset, wall_height / 2),
+        (hall_length / 100, collision_guard_thickness / 100, wall_height / 100),
+        "wall_right",
+        visible=False,
     )
 
 
