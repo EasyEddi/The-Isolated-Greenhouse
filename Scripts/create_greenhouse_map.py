@@ -111,6 +111,34 @@ def add_rectangular_hall():
     )
 
 
+def add_daylight():
+    atmosphere = unreal.EditorLevelLibrary.spawn_actor_from_class(
+        unreal.SkyAtmosphere,
+        unreal.Vector(0, 0, 0),
+        unreal.Rotator(0, 0, 0),
+    )
+    atmosphere.set_actor_label("Lighting_Daytime_SkyAtmosphere")
+
+    sky = unreal.EditorLevelLibrary.spawn_actor_from_class(
+        unreal.SkyLight,
+        unreal.Vector(0, 0, 600),
+        unreal.Rotator(0, 0, 0),
+    )
+    sky.set_actor_label("Lighting_Daytime_SkyLight")
+    sky_comp = sky.get_component_by_class(unreal.SkyLightComponent)
+    sky_comp.set_editor_property("intensity", 1.4)
+
+    sun = unreal.EditorLevelLibrary.spawn_actor_from_class(
+        unreal.DirectionalLight,
+        unreal.Vector(0, 0, 800),
+        unreal.Rotator(-45, -35, 0),
+    )
+    sun.set_actor_label("Lighting_Sun_Daylight")
+    sun_comp = sun.get_component_by_class(unreal.DirectionalLightComponent)
+    sun_comp.set_editor_property("intensity", 6.0)
+    sun_comp.set_editor_property("light_color", unreal.Color(255, 246, 226, 255))
+
+
 def main():
     global MATERIALS
 
@@ -131,6 +159,7 @@ def main():
     }
 
     add_rectangular_hall()
+    add_daylight()
 
     unreal.EditorLevelLibrary.save_current_level()
     unreal.EditorAssetLibrary.save_directory("/Game/Art", only_if_is_dirty=False, recursive=True)
