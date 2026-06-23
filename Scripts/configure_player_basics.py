@@ -62,15 +62,16 @@ def configure_character_mesh():
 
     for component in cdo.get_components_by_class(unreal.SkeletalMeshComponent):
         component.set_editor_property("skeletal_mesh", character_mesh)
-        component.set_editor_property("visible", True)
-        component.set_editor_property("hidden_in_game", False)
+        component.set_editor_property("visible", False)
+        component.set_editor_property("hidden_in_game", True)
+        component.set_editor_property("owner_no_see", True)
         component.set_editor_property("cast_shadow", False)
         component.set_editor_property("cast_dynamic_shadow", False)
         component.set_editor_property("cast_static_shadow", False)
         changed += 1
 
     unreal.EditorAssetLibrary.save_loaded_asset(character_bp)
-    unreal.log(f"Configured {changed} character skeletal mesh component(s) with Quinn mesh and shadows disabled.")
+    unreal.log(f"Configured {changed} character skeletal mesh component(s) with Quinn mesh hidden from first-person view and shadows disabled.")
 
 
 if __name__ == "__main__":
