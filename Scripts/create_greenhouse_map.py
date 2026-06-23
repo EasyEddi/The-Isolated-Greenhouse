@@ -1,8 +1,19 @@
+import math
+import os
+import random
+import struct
+import zlib
+
 import unreal
 
 
 PROJECT_MAP = "/Game/Maps/L_Greenhouse_MVP"
 CUBE = "/Engine/BasicShapes/Cube.Cube"
+GENERATED_TEXTURE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "Intermediate",
+    "GeneratedTextures",
+)
 
 
 def load_asset(path):
@@ -17,7 +28,130 @@ def ensure_folder(path):
         unreal.EditorAssetLibrary.make_directory(path)
 
 
-def make_material(name, color, roughness=0.85, texture_strength=0.0, noise_scale=18.0):
+def write_png(path, width, height, pixels):
+    def chunk(tag, data):
+        return (
+            struct.pack(">I", len(data))
+            + tag
+            + data
+            + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+        )
+
+    raw_rows = []
+    for y in range(height):
+        row = bytearray([0])
+        for x in range(width):
+            row.extend(pixels[y * width + x])
+        raw_rows.append(bytes(row))
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as handle:
+        handle.write(b"\x89PNG\r\n\x1a\n")
+        handle.write(chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)))
+        handle.write(chunk(b"IDAT", zlib.compress(b"".join(raw_rows), 9)))
+        handle.write(chunk(b"IEND", b""))
+
+
+def clamp_channel(value):
+    return max(0, min(255, int(value)))
+
+
+def make_rubber_floor_png(path, size=768):
+    rng = random.Random(42)
+    pixels = []
+    for y in range(size):
+        for x in range(size):
+            seam = min(x % 192, y % 192)
+            seam_line = 22 if seam < 3 else 0
+            scuff = 10 * math.sin((x * 0.071) + (y * 0.037)) + 6 * math.sin((x - y) * 0.019)
+            speck = rng.randint(-10, 12)
+            base = 55 + scuff + speck - seam_line
+            pixels.append(
+                (
+                    clamp_channel(base),
+                    clamp_channel(base + 4),
+                    clamp_channel(base + 3),
+                    255,
+                )
+            )
+    write_png(path, size, size, pixels)
+
+
+def make_damaged_brick_png(path, size=1024):
+    rng = random.Random(73)
+    brick_w = 160
+    brick_h = 70
+    mortar = 8
+    damage_centers = [(210, 240, 130), (760, 350, 105), (510, 720, 150), (875, 825, 90)]
+    pixels = []
+
+    for y in range(size):
+        row = y // brick_h
+        offset = (brick_w // 2) if row % 2 else 0
+        for x in range(size):
+            local_x = (x + offset) % brick_w
+            local_y = y % brick_h
+            is_mortar = local_x < mortar or local_y < mortar
+
+            chip_strength = 0.0
+            for cx, cy, radius in damage_centers:
+                distance = math.hypot(x - cx, y - cy)
+                if distance < radius:
+                    edge_noise = 0.72 + 0.22 * math.sin(x * 0.081) + 0.18 * math.sin(y * 0.067)
+                    chip_strength = max(chip_strength, max(0.0, (1.0 - distance / radius) * edge_noise))
+
+            if is_mortar:
+                base = 88 + rng.randint(-10, 8)
+                color = (base, base - 2, base - 7)
+            else:
+                variation = 18 * math.sin((x // 9) * 0.8) + 10 * math.sin((y // 11) * 0.7) + rng.randint(-14, 14)
+                color = (145 + variation, 68 + variation * 0.35, 45 + variation * 0.25)
+
+            if chip_strength > 0.18 and not is_mortar:
+                plaster = 150 + rng.randint(-18, 20)
+                color = (
+                    color[0] * (1 - chip_strength) + plaster * chip_strength,
+                    color[1] * (1 - chip_strength) + (plaster - 8) * chip_strength,
+                    color[2] * (1 - chip_strength) + (plaster - 18) * chip_strength,
+                )
+
+            pixels.append(
+                (
+                    clamp_channel(color[0]),
+                    clamp_channel(color[1]),
+                    clamp_channel(color[2]),
+                    255,
+                )
+            )
+
+    write_png(path, size, size, pixels)
+
+
+def import_texture(name, generator):
+    ensure_folder("/Game/Art/Textures")
+    source_path = os.path.join(GENERATED_TEXTURE_DIR, f"{name}.png")
+    generator(source_path)
+
+    destination_path = f"/Game/Art/Textures/{name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(destination_path):
+        unreal.EditorAssetLibrary.delete_asset(destination_path)
+
+    task = unreal.AssetImportTask()
+    task.set_editor_property("filename", source_path)
+    task.set_editor_property("destination_path", "/Game/Art/Textures")
+    task.set_editor_property("destination_name", name)
+    task.set_editor_property("automated", True)
+    task.set_editor_property("replace_existing", True)
+    task.set_editor_property("save", True)
+
+    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    texture = unreal.EditorAssetLibrary.load_asset(destination_path)
+    if not texture:
+        raise RuntimeError(f"Failed to import texture: {source_path}")
+    return texture
+
+
+def make_textured_material(name, texture, roughness=0.85):
     ensure_folder("/Game/Art/Materials")
     path = f"/Game/Art/Materials/{name}"
     existing = unreal.EditorAssetLibrary.load_asset(path)
@@ -27,35 +161,13 @@ def make_material(name, color, roughness=0.85, texture_strength=0.0, noise_scale
     tools = unreal.AssetToolsHelpers.get_asset_tools()
     material = tools.create_asset(name, "/Game/Art/Materials", unreal.Material, unreal.MaterialFactoryNew())
 
-    color_expr = unreal.MaterialEditingLibrary.create_material_expression(
-        material, unreal.MaterialExpressionConstant3Vector, -400, 0
+    texture_expr = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionTextureSample, -450, 0
     )
-    color_expr.set_editor_property("constant", unreal.LinearColor(*color))
-
-    if texture_strength > 0:
-        noise_expr = unreal.MaterialEditingLibrary.create_material_expression(
-            material, unreal.MaterialExpressionNoise, -650, 120
-        )
-        noise_expr.set_editor_property("scale", noise_scale)
-        noise_expr.set_editor_property("levels", 5)
-
-        strength_expr = unreal.MaterialEditingLibrary.create_material_expression(
-            material, unreal.MaterialExpressionConstant, -650, 280
-        )
-        strength_expr.set_editor_property("r", texture_strength)
-
-        multiply_expr = unreal.MaterialEditingLibrary.create_material_expression(
-            material, unreal.MaterialExpressionMultiply, -150, 20
-        )
-        unreal.MaterialEditingLibrary.connect_material_expressions(color_expr, "", multiply_expr, "A")
-        unreal.MaterialEditingLibrary.connect_material_expressions(noise_expr, "", multiply_expr, "B")
-        unreal.MaterialEditingLibrary.connect_material_property(
-            multiply_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
-        )
-    else:
-        unreal.MaterialEditingLibrary.connect_material_property(
-            color_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
-        )
+    texture_expr.set_editor_property("texture", texture)
+    unreal.MaterialEditingLibrary.connect_material_property(
+        texture_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
+    )
 
     roughness_expr = unreal.MaterialEditingLibrary.create_material_expression(
         material, unreal.MaterialExpressionConstant, -400, 160
@@ -114,32 +226,32 @@ def add_rectangular_hall():
     floor_thickness = 20
 
     cube(
-        "Hall_Floor_concrete_slab",
+        "Hall_Floor_rubber_surface",
         (0, 0, -floor_thickness / 2),
         (hall_length / 100, hall_width / 100, floor_thickness / 100),
         "floor",
     )
 
     cube(
-        "Hall_Back_wall_plaster",
+        "Hall_Back_wall_damaged_brick",
         (-hall_length / 2, 0, wall_height / 2),
         (wall_thickness / 100, hall_width / 100, wall_height / 100),
         "wall",
     )
     cube(
-        "Hall_Front_wall_plaster",
+        "Hall_Front_wall_damaged_brick",
         (hall_length / 2, 0, wall_height / 2),
         (wall_thickness / 100, hall_width / 100, wall_height / 100),
         "wall",
     )
     cube(
-        "Hall_Left_wall_plaster",
+        "Hall_Left_wall_damaged_brick",
         (0, -hall_width / 2, wall_height / 2),
         (hall_length / 100, wall_thickness / 100, wall_height / 100),
         "wall",
     )
     cube(
-        "Hall_Right_wall_plaster",
+        "Hall_Right_wall_damaged_brick",
         (0, hall_width / 2, wall_height / 2),
         (hall_length / 100, wall_thickness / 100, wall_height / 100),
         "wall",
@@ -196,8 +308,16 @@ def main():
         unreal.EditorLevelLibrary.destroy_actor(actor)
 
     MATERIALS = {
-        "floor": make_material("M_Hall_Concrete_Floor", (0.55, 0.52, 0.46, 1), 0.94, 1.65, 26.0),
-        "wall": make_material("M_Hall_Warm_Plaster_Wall", (0.80, 0.77, 0.68, 1), 0.9, 1.25, 38.0),
+        "floor": make_textured_material(
+            "M_Hall_Rubber_Floor",
+            import_texture("T_Hall_Rubber_Floor", make_rubber_floor_png),
+            0.96,
+        ),
+        "wall": make_textured_material(
+            "M_Hall_Damaged_Brick_Wall",
+            import_texture("T_Hall_Damaged_Brick_Wall", make_damaged_brick_png),
+            0.91,
+        ),
     }
 
     add_rectangular_hall()

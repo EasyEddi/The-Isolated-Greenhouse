@@ -2,7 +2,8 @@ import unreal
 
 
 MOUSE_LOOK_CONTEXT = "/Game/Input/IMC_MouseLook"
-MOUSE_SENSITIVITY = 0.08
+FIRST_PERSON_CHARACTER = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
+MOUSE_SENSITIVITY = 0.50
 
 
 def configure_mouse_sensitivity():
@@ -45,5 +46,27 @@ def configure_mouse_sensitivity():
     unreal.log(f"Mouse look sensitivity scaled to {MOUSE_SENSITIVITY}.")
 
 
+def hide_first_person_hands():
+    character_bp = unreal.EditorAssetLibrary.load_asset(FIRST_PERSON_CHARACTER)
+    if not character_bp:
+        raise RuntimeError(f"Missing first person character blueprint: {FIRST_PERSON_CHARACTER}")
+
+    generated_class = character_bp.generated_class()
+    cdo = unreal.get_default_object(generated_class)
+    changed = 0
+
+    for component in cdo.get_components_by_class(unreal.SkeletalMeshComponent):
+        component.set_editor_property("visible", False)
+        component.set_editor_property("hidden_in_game", True)
+        component.set_editor_property("cast_shadow", False)
+        component.set_editor_property("cast_dynamic_shadow", False)
+        component.set_editor_property("cast_static_shadow", False)
+        changed += 1
+
+    unreal.EditorAssetLibrary.save_loaded_asset(character_bp)
+    unreal.log(f"Disabled visibility and shadows for {changed} first-person skeletal mesh component(s).")
+
+
 if __name__ == "__main__":
     configure_mouse_sensitivity()
+    hide_first_person_hands()
