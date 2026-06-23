@@ -42,10 +42,10 @@ So viele Pflanzen (und auch Mutationen) sammeln und verkaufen wie möglich
 
 ### Eddi
 
-- [ ] Unreal-Projekt-Setup
-- [ ] Greenhouse-Map
+- [x] Unreal-Projekt-Setup
+- [x] Greenhouse-Map
 - [ ] Licht und Atmosphäre
-- [ ] First-Person-Bewegung
+- [x] First-Person-Bewegung
 - [ ] Interaktionssystem
 - [ ] erste Pflanzen
 - [ ] Pflanzenzustände
@@ -81,7 +81,7 @@ So viele Pflanzen (und auch Mutationen) sammeln und verkaufen wie möglich
 
 ## Erfolgskriterien
 
-- [ ] Der Spieler kann sich in der Map in First-Person bewegen
+- [x] Der Spieler kann sich in der Map in First-Person bewegen
 - [ ] Der Spieler kann eine Pflanze pflegen, bis sie bereit für Ableger ist
 - [ ] Der Spieler kann Ableger schneiden und damit Bestellungen abschließen
 - [ ] Es gibt mindestens 3 Bestellungen, die nacheinander freigeschaltet werden
@@ -91,9 +91,9 @@ So viele Pflanzen (und auch Mutationen) sammeln und verkaufen wie möglich
 - [ ] Das Projekt lässt sich im Unreal Editor starten und vorführen
 
 ### mockups
-
 <img width="599" height="400" alt="image" src="https://github.com/user-attachments/assets/e151da7d-0958-4fa0-9135-e960d7d23e69" />
-- [x] Schwarz = Halle
+
+- [x] schwarz = Halle
 - [ ] gelb = Wohnbereich
 - [ ] cyan = Gewächshäuser
 - [ ] rot = Schreibtisch (PC)
