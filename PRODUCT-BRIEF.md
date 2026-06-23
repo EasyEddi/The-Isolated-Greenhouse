@@ -93,3 +93,9 @@ So viele Pflanzen (und auch Mutationen) sammeln und verkaufen wie möglich
 ### mockups
 
 <img width="599" height="400" alt="image" src="https://github.com/user-attachments/assets/e151da7d-0958-4fa0-9135-e960d7d23e69" />
+Schwarz = Halle
+gelb = Wohnbereich
+cyan = Gewächshäuser
+rot = Schreibtisch (PC)
+braun = Storage für equipment (Dünger, Erde etc.)
+orange = erstmal frei
