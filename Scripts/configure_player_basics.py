@@ -6,6 +6,7 @@ FIRST_PERSON_CHARACTER = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
 MANNY_PLACEHOLDER_MESH = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"
 INVISIBLE_MATERIAL = "/Game/Characters/Mannequins/Materials/M_Invisible_FirstPersonPlaceholder"
 MOUSE_SENSITIVITY = 0.12
+CAMERA_HEIGHT_CM = 170.0
 FIRST_PERSON_MESH_PROPERTIES = (
     "FirstPersonMesh",
     "CharacterMesh",
@@ -54,13 +55,18 @@ def configure_mouse_sensitivity():
     unreal.log(f"Mouse look sensitivity scaled to {MOUSE_SENSITIVITY}.")
 
 
-def hide_skeletal_component(component):
+def set_skeletal_mesh(component, mesh):
     for mesh_property in ("skeletal_mesh_asset", "skeletal_mesh"):
         try:
-            component.set_editor_property(mesh_property, None)
+            component.set_editor_property(mesh_property, mesh)
+            return True
         except Exception:
-            pass
+            continue
+    return False
 
+
+def hide_skeletal_component(component, hidden_mesh):
+    set_skeletal_mesh(component, hidden_mesh)
     component.set_editor_property("visible", False)
     component.set_editor_property("hidden_in_game", True)
     component.set_editor_property("owner_no_see", True)
@@ -68,6 +74,11 @@ def hide_skeletal_component(component):
     component.set_editor_property("cast_shadow", False)
     component.set_editor_property("cast_dynamic_shadow", False)
     component.set_editor_property("cast_static_shadow", False)
+
+
+def configure_camera_component(component):
+    component.set_editor_property("relative_location", unreal.Vector(0.0, 0.0, CAMERA_HEIGHT_CM))
+    component.set_editor_property("relative_rotation", unreal.Rotator(0.0, 0.0, 0.0))
 
 
 def invisible_material():
@@ -124,10 +135,24 @@ def configure_character_mesh():
 
     generated_class = character_bp.generated_class()
     cdo = unreal.get_default_object(generated_class)
+    hidden_mesh = unreal.EditorAssetLibrary.load_asset(MANNY_PLACEHOLDER_MESH)
+    if not hidden_mesh:
+        raise RuntimeError(f"Missing placeholder mesh: {MANNY_PLACEHOLDER_MESH}")
+
+    for property_name in ("base_eye_height", "BaseEyeHeight"):
+        try:
+            cdo.set_editor_property(property_name, CAMERA_HEIGHT_CM)
+        except Exception:
+            pass
+
     changed = set()
 
     for component in cdo.get_components_by_class(unreal.SkeletalMeshComponent):
-        hide_skeletal_component(component)
+        hide_skeletal_component(component, hidden_mesh)
+        changed.add(component.get_path_name())
+
+    for component in cdo.get_components_by_class(unreal.CameraComponent):
+        configure_camera_component(component)
         changed.add(component.get_path_name())
 
     for property_name in FIRST_PERSON_MESH_PROPERTIES:
@@ -137,7 +162,7 @@ def configure_character_mesh():
             continue
 
         if isinstance(component, unreal.SkeletalMeshComponent):
-            hide_skeletal_component(component)
+            hide_skeletal_component(component, hidden_mesh)
             changed.add(component.get_path_name())
 
     construction_script = None
@@ -160,7 +185,10 @@ def configure_character_mesh():
                 component = None
 
             if isinstance(component, unreal.SkeletalMeshComponent):
-                hide_skeletal_component(component)
+                hide_skeletal_component(component, hidden_mesh)
+                changed.add(component.get_path_name())
+            elif isinstance(component, unreal.CameraComponent):
+                configure_camera_component(component)
                 changed.add(component.get_path_name())
 
     subobject_subsystem = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
@@ -176,14 +204,17 @@ def configure_character_mesh():
                 character_bp,
             )
             if isinstance(component, unreal.SkeletalMeshComponent):
-                hide_skeletal_component(component)
+                hide_skeletal_component(component, hidden_mesh)
+                changed.add(component.get_path_name())
+            elif isinstance(component, unreal.CameraComponent):
+                configure_camera_component(component)
                 changed.add(component.get_path_name())
 
     unreal.BlueprintEditorLibrary.compile_blueprint(character_bp)
     unreal.EditorAssetLibrary.save_loaded_asset(character_bp)
     unreal.log(
         "Configured "
-        f"{len(changed)} character skeletal mesh component(s) with no first-person mesh and shadows disabled."
+        f"{len(changed)} first-person component(s) with invisible character mesh and camera height {CAMERA_HEIGHT_CM}cm."
     )
 
 
