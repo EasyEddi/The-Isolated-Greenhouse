@@ -70,6 +70,19 @@ def cube(label, location, scale, mat_name):
     return actor
 
 
+def set_map_game_mode():
+    game_mode_class = unreal.EditorAssetLibrary.load_blueprint_class(
+        "/Game/FirstPerson/Blueprints/BP_FirstPersonGameMode"
+    )
+    if not game_mode_class:
+        unreal.log_warning("First-person GameMode not found; map will still open, but PIE may use the default pawn.")
+        return
+
+    world = unreal.EditorLevelLibrary.get_editor_world()
+    world_settings = world.get_world_settings()
+    world_settings.set_editor_property("default_game_mode", game_mode_class)
+
+
 def add_rectangular_hall():
     # Unreal cube base size is 100cm. This hall is 24m x 16m with 4m high walls.
     hall_length = 2400
@@ -111,6 +124,24 @@ def add_rectangular_hall():
     )
 
 
+def add_floor_layout_zones():
+    # Floor planning only. These are placeholder area markers from the sketch, not furniture.
+    zone_z = 3
+
+    cube("Zone_LivingArea_Yellow", (-860, -115, zone_z), (2.3, 11.0, 0.03), "zone_living")
+
+    cube("Zone_GreenhouseArea_Cyan", (-105, -425, zone_z), (7.2, 2.55, 0.03), "zone_greenhouse")
+
+    cube("Zone_DeskPcArea_Red", (-415, 430, zone_z), (3.6, 1.55, 0.03), "zone_desk")
+
+    cube("Zone_ToolsFertilizer_Brown", (220, 120, zone_z), (1.7, 1.7, 0.03), "zone_tools")
+
+    cube("Zone_Unclear_Orange_Right", (740, 35, zone_z), (4.0, 9.1, 0.03), "zone_unclear")
+    cube("Zone_Unclear_Orange_Bottom", (520, 500, zone_z + 1), (4.8, 2.1, 0.03), "zone_unclear")
+
+    cube("Zone_SpawnMarker_Black", (-520, 65, zone_z + 2), (0.45, 0.45, 0.035), "zone_spawn")
+
+
 def add_daylight():
     atmosphere = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.SkyAtmosphere,
@@ -138,6 +169,13 @@ def add_daylight():
     sun_comp.set_editor_property("intensity", 6.0)
     sun_comp.set_editor_property("light_color", unreal.Color(255, 246, 226, 255))
 
+    start = unreal.EditorLevelLibrary.spawn_actor_from_class(
+        unreal.PlayerStart,
+        unreal.Vector(-520, 65, 95),
+        unreal.Rotator(0, 0, 0),
+    )
+    start.set_actor_label("PlayerStart_Main_Hall")
+
 
 def main():
     global MATERIALS
@@ -156,14 +194,22 @@ def main():
     MATERIALS = {
         "floor": make_material("M_Hall_Concrete_Floor", (0.42, 0.40, 0.36, 1), 0.92),
         "wall": make_material("M_Hall_Warm_Plaster_Wall", (0.72, 0.70, 0.64, 1), 0.88),
+        "zone_living": make_material("M_Zone_Living_Yellow", (1.0, 0.76, 0.03, 1), 0.7),
+        "zone_greenhouse": make_material("M_Zone_Greenhouse_Cyan", (0.0, 0.82, 0.9, 1), 0.7),
+        "zone_desk": make_material("M_Zone_Desk_Red", (1.0, 0.14, 0.10, 1), 0.7),
+        "zone_tools": make_material("M_Zone_Tools_Brown", (0.52, 0.27, 0.11, 1), 0.7),
+        "zone_unclear": make_material("M_Zone_Unclear_Orange", (1.0, 0.50, 0.0, 1), 0.7),
+        "zone_spawn": make_material("M_Zone_Spawn_Black", (0.015, 0.015, 0.015, 1), 0.8),
     }
 
     add_rectangular_hall()
+    add_floor_layout_zones()
     add_daylight()
+    set_map_game_mode()
 
     unreal.EditorLevelLibrary.save_current_level()
     unreal.EditorAssetLibrary.save_directory("/Game/Art", only_if_is_dirty=False, recursive=True)
-    unreal.log("Created simple rectangular hall: floor and four 4m walls, no ceiling, no props.")
+    unreal.log("Created hall map with floor/walls, daylight, spawn, walking GameMode, and floor layout zones.")
 
 
 if __name__ == "__main__":
