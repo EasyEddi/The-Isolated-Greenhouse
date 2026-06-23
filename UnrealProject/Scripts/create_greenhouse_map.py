@@ -225,7 +225,9 @@ def cube(label, location, scale, mat_name):
     actor.set_actor_scale3d(unreal.Vector(*scale))
     comp = actor.get_component_by_class(unreal.StaticMeshComponent)
     comp.set_static_mesh(load_asset(CUBE))
-    comp.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
+    comp.set_editor_property("mobility", unreal.ComponentMobility.STATIC)
+    actor.set_actor_enable_collision(True)
+    comp.set_collision_profile_name("BlockAll")
     comp.set_material(0, material(mat_name))
     return actor
 
@@ -248,9 +250,12 @@ def add_rectangular_hall():
     # Unreal cube base size is 100cm. This hall is 24m x 16m with tall open walls.
     hall_length = 2400
     hall_width = 1600
-    wall_thickness = 30
+    wall_thickness = 120
     wall_height = 520
     floor_thickness = 20
+    half_length = hall_length / 2
+    half_width = hall_width / 2
+    half_wall = wall_thickness / 2
 
     cube(
         "Hall_Floor_rubber_surface",
@@ -261,25 +266,25 @@ def add_rectangular_hall():
 
     cube(
         "Hall_Back_wall_damaged_brick",
-        (-hall_length / 2, 0, wall_height / 2),
+        (-half_length - half_wall, 0, wall_height / 2),
         (wall_thickness / 100, hall_width / 100, wall_height / 100),
         "wall_back",
     )
     cube(
         "Hall_Front_wall_damaged_brick",
-        (hall_length / 2, 0, wall_height / 2),
+        (half_length + half_wall, 0, wall_height / 2),
         (wall_thickness / 100, hall_width / 100, wall_height / 100),
         "wall_front",
     )
     cube(
         "Hall_Left_wall_damaged_brick",
-        (0, -hall_width / 2, wall_height / 2),
+        (0, -half_width - half_wall, wall_height / 2),
         (hall_length / 100, wall_thickness / 100, wall_height / 100),
         "wall_left",
     )
     cube(
         "Hall_Right_wall_damaged_brick",
-        (0, hall_width / 2, wall_height / 2),
+        (0, half_width + half_wall, wall_height / 2),
         (hall_length / 100, wall_thickness / 100, wall_height / 100),
         "wall_right",
     )
