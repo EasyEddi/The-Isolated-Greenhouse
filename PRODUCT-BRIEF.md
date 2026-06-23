@@ -42,56 +42,54 @@ So viele Pflanzen (und auch Mutationen) sammeln und verkaufen wie möglich
 
 ### Eddi
 
-- Unreal-Projekt-Setup            [ ]
-- Greenhouse-Map                  [ ]
-- Licht und Atmosphäre            [ ]
-- First-Person-Bewegung           [ ]
-- Interaktionssystem              [ ]
-- erste Pflanzen                  [ ]
-- Pflanzenzustände                [ ]
-- Pflege-Interaktion              [ ]
-- Ableger schneiden               [ ]
-- Auftragssystem                  [ ]
-- Shop-UI                         [ ]
-- Shop-Item, zum Beispiel Dünger  [ ]
+[ ] Unreal-Projekt-Setup
+[ ] Greenhouse-Map
+[ ] Licht und Atmosphäre
+[ ] First-Person-Bewegung
+[ ] Interaktionssystem
+[ ] erste Pflanzen
+[ ] Pflanzenzustände
+[ ] Pflege-Interaktion
+[ ] Ableger schneiden
+[ ] Auftragssystem
+[ ] Shop-UI
+[ ] Shop-Item, zum Beispiel Dünger
 
 ### Tarek
 
-- Computer-Terminal                                 [ ]
-- Order-UI                                          [ ]
-- 3 MVP-Bestellungen                                [ ]
-- Geldsystem                                        [ ]
-- Packstation / Versandpunkt                        [ ]
-- Verbindung von Shop und Pflanzenpflege            [ ]
-- HUD für Geld, Ableger und aktive Aufgabe          [ ]
-- Weitere Bestellungen für Woche 2                  [ ]
-- Visueller Ausbau des Gewächshauses                [ ]
-- Pflanzen, Töpfe, Regale und Werkzeuge platzieren  [ ]
-- Optional SaveGame                                 [ ]
+[ ] Computer-Terminal
+[ ] Order-UI
+[ ] 3 MVP-Bestellungen
+[ ] Geldsystem
+[ ] Packstation / Versandpunkt
+[ ] Verbindung von Shop und Pflanzenpflege
+[ ] HUD für Geld, Ableger und aktive Aufgabe
+[ ] Weitere Bestellungen für Woche 2
+[ ] Visueller Ausbau des Gewächshauses
+[ ] Pflanzen, Töpfe, Regale und Werkzeuge platzieren
+[ ] Optional SaveGame
 
 ### Gemeinsam
 
-- Unreal 5.8 installieren         [x]
-- Repo klonen und Git LFS prüfen  [x]
-- Projekt bei beiden starten      [ ]
-- Pull Requests reviewen          [ ]
-- Integration testen              [ ]
-- Bugs als Issues aufschreiben    [ ]
-- Demo vorbereiten                [ ]
+[x] Unreal 5.8 installieren
+[x] Repo klonen und Git LFS prüfen
+[x] Projekt bei beiden starten
+[ ] Pull Requests reviewen
+[ ] Integration testen
+[ ] Bugs als Issues aufschreiben
+[ ] Demo vorbereiten
 
 ## Erfolgskriterien
 
-- Der Spieler kann sich in der Map in First-Person bewegen
-- Der Spieler kann eine Pflanze pflegen, bis sie bereit für Ableger ist
-- Der Spieler kann Ableger schneiden und damit Bestellungen abschließen
-- Es gibt mindestens 3 Bestellungen, die nacheinander freigeschaltet werden
-- Der Spieler bekommt Geld für abgeschlossene Bestellungen
-- Der Spieler kann im Shop mindestens ein Item kaufen, zum Beispiel Dünger
-- Die Atmosphaere wirkt ruhig, warm und friedlich, nicht gruselig
-- Das Projekt lässt sich im Unreal Editor starten und vorführen
+[ ] Der Spieler kann sich in der Map in First-Person bewegen
+[ ] Der Spieler kann eine Pflanze pflegen, bis sie bereit für Ableger ist
+[ ] Der Spieler kann Ableger schneiden und damit Bestellungen abschließen
+[ ] Es gibt mindestens 3 Bestellungen, die nacheinander freigeschaltet werden
+[ ] Der Spieler bekommt Geld für abgeschlossene Bestellungen
+[ ] Der Spieler kann im Shop mindestens ein Item kaufen, zum Beispiel Dünger
+[ ] Die Atmosphaere wirkt ruhig, warm und friedlich, nicht gruselig
+[ ] Das Projekt lässt sich im Unreal Editor starten und vorführen
 
-## Offene Fragen
+### mockups
 
-- 
-- 
-- 
+<img width="599" height="400" alt="image" src="https://github.com/user-attachments/assets/e151da7d-0958-4fa0-9135-e960d7d23e69" />
