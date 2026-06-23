@@ -3,7 +3,7 @@ import unreal
 
 MOUSE_LOOK_CONTEXT = "/Game/Input/IMC_MouseLook"
 FIRST_PERSON_CHARACTER = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
-MOUSE_SENSITIVITY = 0.50
+MOUSE_SENSITIVITY = 0.15
 
 
 def configure_mouse_sensitivity():
