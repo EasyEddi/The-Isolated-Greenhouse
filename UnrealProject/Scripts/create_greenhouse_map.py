@@ -264,8 +264,8 @@ WALL_THICKNESS = 120
 WALL_HEIGHT = 600
 FLOOR_THICKNESS = 20
 WALL_SURFACE_PANEL_DEPTH = 8
-WALL_PANEL_WIDTH = 72
-WALL_PANEL_HEIGHT = 56
+WALL_PANEL_WIDTH = 240
+WALL_PANEL_HEIGHT = 150
 
 
 def scaled_damage_cluster(horizontal, z, width, height, seed):
@@ -559,7 +559,7 @@ def add_damage_cluster(wall, center, z, width, height, seed):
         22.0,
     )
 
-    for index in range(56):
+    for index in range(12):
         angle = rng.uniform(0.0, math.tau)
         radius = math.sqrt(rng.uniform(0.0, 1.0))
         px = center + math.cos(angle) * radius * width * rng.uniform(0.10, 0.48)
@@ -576,11 +576,11 @@ def add_damage_cluster(wall, center, z, width, height, seed):
             rng.uniform(width * 0.055, width * 0.13),
             rng.uniform(height * 0.045, height * 0.12),
             rng.uniform(3.0, 7.0),
-            "damage_plaster" if index < 44 else "damage_shadow",
+            "damage_plaster" if index < 9 else "damage_shadow",
             rng.uniform(14.0, 27.0) * max(0.45, edge_fade),
         )
 
-    for index in range(70):
+    for index in range(16):
         angle = rng.uniform(0.0, math.tau)
         radius = math.sqrt(rng.uniform(0.0, 0.95))
         px = center + math.cos(angle) * radius * width * 0.45
@@ -597,7 +597,7 @@ def add_damage_cluster(wall, center, z, width, height, seed):
             rng.uniform(5.0, 18.0),
         )
 
-    for index in range(40):
+    for index in range(10):
         angle = rng.uniform(0.0, math.tau)
         radius = rng.uniform(0.38, 1.03)
         px = center + math.cos(angle) * radius * width * 0.50
@@ -615,7 +615,7 @@ def add_damage_cluster(wall, center, z, width, height, seed):
             rng.uniform(5.0, 15.0),
         )
 
-    for index in range(28):
+    for index in range(8):
         side = rng.choice((-1, 1))
         px = center + side * rng.uniform(width * 0.34, width * 0.58)
         pz = z + rng.uniform(-height * 0.46, height * 0.46)
@@ -880,6 +880,9 @@ def main():
     add_planned_room_layout(models)
     add_daylight()
     set_map_game_mode()
+
+    actor_count = len(unreal.EditorLevelLibrary.get_all_level_actors())
+    unreal.log(f"Generated map actor count: {actor_count}")
 
     unreal.EditorLevelLibrary.save_current_level()
     unreal.EditorAssetLibrary.save_directory("/Game/Art", only_if_is_dirty=False, recursive=True)
