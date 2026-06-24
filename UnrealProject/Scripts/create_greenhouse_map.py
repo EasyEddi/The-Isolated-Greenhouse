@@ -14,6 +14,9 @@ GENERATED_TEXTURE_DIR = os.path.join(
     "Intermediate",
     "GeneratedTextures",
 )
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OBJ_SOURCE_DIR = os.path.join(PROJECT_ROOT, "OBJ_Models")
+IMPORTED_MODEL_DIR = "/Game/ImportedModels"
 
 
 def load_asset(path):
@@ -26,6 +29,13 @@ def load_asset(path):
 def ensure_folder(path):
     if not unreal.EditorAssetLibrary.does_directory_exist(path):
         unreal.EditorAssetLibrary.make_directory(path)
+
+
+def set_editor_property_if_available(obj, property_name, value):
+    try:
+        obj.set_editor_property(property_name, value)
+    except Exception:
+        pass
 
 
 def write_png(path, width, height, pixels):
@@ -280,6 +290,27 @@ DAMAGE_CLUSTERS = {
     wall: tuple(scaled_damage_cluster(*cluster) for cluster in clusters)
     for wall, clusters in BASE_DAMAGE_CLUSTERS.items()
 }
+MODEL_SPECS = {
+    "bed": ("Props/Bed/Bed.obj", 100.0),
+    "desk_setup": ("Props/Office_Desk_Setup/Office_Desk_Setup.obj", 100.0),
+    "storage_shelf": ("Props/Storage_Shelf/Storage_Shelf.obj", 100.0),
+    "empty_pot": ("Props/FlowerPots/Empty_Flower_Pot/Empty_Flower_Pot.obj", 100.0),
+    "soil_pot": ("Props/FlowerPots/Flower_Pot_With_Soil/Flower_Pot_With_Soil.obj", 100.0),
+    "fertilized_pot": (
+        "Props/FlowerPots/Flower_Pot_With_Soil_And_Fertilizer/Flower_Pot_With_Soil_And_Fertilizer.obj",
+        100.0,
+    ),
+    "soil_bag": ("Props/PottingSoilBag/SM_Prop_PottingSoilBag_01.obj", 1.0),
+    "fertilizer_bag": ("Props/OrganicFertilizerBag/SM_Prop_OrganicFertilizerBag_01.obj", 1.0),
+    "watering_can": ("Props/WateringCan/SM_Prop_WateringCan_01.obj", 1.0),
+    "large_watering_can": ("Props/Large_Watering_Can/Large_Watering_Can.obj", 100.0),
+    "trowel": ("Props/Garden_Trowel/Garden_Trowel.obj", 100.0),
+    "secateur": ("Props/Secateur/Secateur/Secateur.obj", 100.0),
+    "fridge": ("Props/Refrigerator/SM_Prop_Refrigerator_01.obj", 1.0),
+    "oven": ("Props/Oven/Oven.obj", 100.0),
+    "stovetop": ("Props/Stovetop/SM_Prop_Stovetop_01.obj", 1.0),
+    "microwave": ("Props/Microwave/Microwave.obj", 100.0),
+}
 
 
 def material(name):
@@ -308,6 +339,85 @@ def damage_cube(label, location, scale, mat_name):
     actor.set_actor_enable_collision(False)
     comp = actor.get_component_by_class(unreal.StaticMeshComponent)
     comp.set_collision_profile_name("NoCollision")
+    return actor
+
+
+def imported_model_asset_path(key):
+    return f"{IMPORTED_MODEL_DIR}/{key}/{key}"
+
+
+def import_static_model(key, relative_obj_path, import_scale):
+    destination_path = f"{IMPORTED_MODEL_DIR}/{key}"
+    asset_path = imported_model_asset_path(key)
+    if unreal.EditorAssetLibrary.does_directory_exist(destination_path):
+        unreal.EditorAssetLibrary.delete_directory(destination_path)
+
+    ensure_folder(IMPORTED_MODEL_DIR)
+    ensure_folder(destination_path)
+
+    source_path = os.path.join(OBJ_SOURCE_DIR, relative_obj_path)
+    task = unreal.AssetImportTask()
+    task.set_editor_property("filename", source_path)
+    task.set_editor_property("destination_path", destination_path)
+    task.set_editor_property("destination_name", key)
+    task.set_editor_property("automated", True)
+    task.set_editor_property("replace_existing", True)
+    task.set_editor_property("save", True)
+
+    import_ui = unreal.FbxImportUI()
+    set_editor_property_if_available(import_ui, "import_mesh", True)
+    set_editor_property_if_available(import_ui, "import_as_skeletal", False)
+    set_editor_property_if_available(import_ui, "import_materials", True)
+    set_editor_property_if_available(import_ui, "import_textures", True)
+    set_editor_property_if_available(import_ui, "automated_import_should_detect_type", False)
+    set_editor_property_if_available(import_ui, "mesh_type_to_import", unreal.FBXImportType.FBXIT_STATIC_MESH)
+    if import_ui.static_mesh_import_data:
+        set_editor_property_if_available(import_ui.static_mesh_import_data, "import_uniform_scale", import_scale)
+        set_editor_property_if_available(import_ui.static_mesh_import_data, "combine_meshes", True)
+        set_editor_property_if_available(import_ui.static_mesh_import_data, "generate_lightmap_u_vs", True)
+    task.set_editor_property("options", import_ui)
+
+    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    imported = unreal.EditorAssetLibrary.load_asset(asset_path)
+    if imported:
+        return imported
+
+    for object_path in task.imported_object_paths:
+        asset = unreal.EditorAssetLibrary.load_asset(object_path)
+        if isinstance(asset, unreal.StaticMesh):
+            return asset
+
+    raise RuntimeError(f"Failed to import model: {source_path}")
+
+
+def import_layout_models():
+    return {
+        key: import_static_model(key, relative_obj_path, import_scale)
+        for key, (relative_obj_path, import_scale) in MODEL_SPECS.items()
+    }
+
+
+def snap_actor_to_floor(actor, floor_z=0.0):
+    origin, extent = actor.get_actor_bounds(False)
+    bottom_z = origin.z - extent.z
+    actor.add_actor_world_offset(unreal.Vector(0.0, 0.0, floor_z - bottom_z), False, False)
+
+
+def place_model(models, key, label, location, yaw=0.0, scale=1.0, snap_to_floor=True):
+    actor = unreal.EditorLevelLibrary.spawn_actor_from_class(
+        unreal.StaticMeshActor,
+        unreal.Vector(*location),
+        unreal.Rotator(0.0, yaw, 0.0),
+    )
+    actor.set_actor_label(label)
+    actor.set_actor_scale3d(unreal.Vector(scale, scale, scale))
+    comp = actor.get_component_by_class(unreal.StaticMeshComponent)
+    comp.set_static_mesh(models[key])
+    comp.set_editor_property("mobility", unreal.ComponentMobility.STATIC)
+    actor.set_actor_enable_collision(True)
+    comp.set_collision_profile_name("BlockAll")
+    if snap_to_floor:
+        snap_actor_to_floor(actor)
     return actor
 
 
@@ -554,6 +664,80 @@ def add_rectangular_hall():
             add_damage_cluster(wall, *cluster)
 
 
+def add_greenhouse_work_area(models):
+    # Static placeholder benches for the greenhouse zone; plant gameplay stays out of this map pass.
+    for index, x in enumerate((-430, 0, 430)):
+        cube(
+            f"Greenhouse_Workbench_{index + 1}",
+            (x, 650, 47),
+            (3.6, 0.72, 0.18),
+            "damage_plaster",
+        )
+        cube(
+            f"Greenhouse_Workbench_{index + 1}_Left_Leg",
+            (x - 150, 650, 20),
+            (0.12, 0.12, 0.40),
+            "wall_core",
+        )
+        cube(
+            f"Greenhouse_Workbench_{index + 1}_Right_Leg",
+            (x + 150, 650, 20),
+            (0.12, 0.12, 0.40),
+            "wall_core",
+        )
+
+    pot_positions = (
+        (-560, 635), (-430, 690), (-300, 635),
+        (-120, 690), (0, 635), (120, 690),
+        (300, 635), (430, 690), (560, 635),
+    )
+    for index, (x, y) in enumerate(pot_positions):
+        pot_key = ("empty_pot", "soil_pot", "fertilized_pot")[index % 3]
+        place_model(models, pot_key, f"Greenhouse_Pot_{index + 1:02d}", (x, y, 75), yaw=(index % 4) * 18)
+
+
+def add_residential_area(models):
+    place_model(models, "bed", "LivingArea_Bed", (-1260, -440, 0), yaw=90)
+    place_model(models, "fridge", "LivingArea_Refrigerator", (-1510, 510, 0), yaw=90)
+    cube("LivingArea_Microwave_Stand", (-1390, 330, 42), (1.05, 0.62, 0.84), "damage_plaster")
+    place_model(models, "microwave", "LivingArea_Microwave", (-1390, 330, 96), yaw=90, snap_to_floor=False)
+
+
+def add_desk_area(models):
+    place_model(models, "desk_setup", "DeskArea_Office_Desk_Setup", (-520, -760, 0), yaw=0)
+
+
+def add_storage_area(models):
+    shelf_positions = ((260, -210, 0, 0), (545, -210, 0, 0), (405, -465, 0, 180))
+    for index, (x, y, z, yaw) in enumerate(shelf_positions):
+        place_model(models, "storage_shelf", f"StorageArea_Shelf_{index + 1}", (x, y, z), yaw=yaw)
+
+    place_model(models, "soil_bag", "StorageArea_Potting_Soil_Bag_01", (170, -50, 0), yaw=-12)
+    place_model(models, "soil_bag", "StorageArea_Potting_Soil_Bag_02", (235, -35, 0), yaw=9)
+    place_model(models, "fertilizer_bag", "StorageArea_Fertilizer_Bag_01", (520, -55, 0), yaw=18)
+    place_model(models, "fertilizer_bag", "StorageArea_Fertilizer_Bag_02", (585, -35, 0), yaw=-10)
+    place_model(models, "watering_can", "StorageArea_Watering_Can", (650, -360, 0), yaw=-35)
+    place_model(models, "large_watering_can", "StorageArea_Large_Watering_Can", (705, -470, 0), yaw=20)
+    place_model(models, "trowel", "StorageArea_Garden_Trowel", (335, -360, 96), yaw=35, snap_to_floor=False)
+    place_model(models, "secateur", "StorageArea_Pruning_Shears", (445, -360, 99), yaw=-24, snap_to_floor=False)
+
+
+def add_free_utility_area(models):
+    place_model(models, "oven", "UtilityArea_Oven", (1120, -575, 0), yaw=-90)
+    cube("UtilityArea_Stovetop_Counter", (1120, -395, 42), (1.25, 0.84, 0.84), "damage_plaster")
+    place_model(models, "stovetop", "UtilityArea_Stovetop", (1120, -395, 92), yaw=-90, snap_to_floor=False)
+    place_model(models, "empty_pot", "UtilityArea_Empty_Pot_Reserve_01", (990, 130, 0), yaw=20)
+    place_model(models, "soil_pot", "UtilityArea_Soil_Pot_Reserve_01", (1135, 185, 0), yaw=-16)
+
+
+def add_planned_room_layout(models):
+    add_residential_area(models)
+    add_greenhouse_work_area(models)
+    add_desk_area(models)
+    add_storage_area(models)
+    add_free_utility_area(models)
+
+
 def add_daylight():
     atmosphere = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.SkyAtmosphere,
@@ -666,13 +850,16 @@ def main():
         ),
     }
 
+    models = import_layout_models()
     add_rectangular_hall()
+    add_planned_room_layout(models)
     add_daylight()
     set_map_game_mode()
 
     unreal.EditorLevelLibrary.save_current_level()
     unreal.EditorAssetLibrary.save_directory("/Game/Art", only_if_is_dirty=False, recursive=True)
-    unreal.log("Created playable hall map: textured floor/walls, daylight, spawn, and walking GameMode.")
+    unreal.EditorAssetLibrary.save_directory(IMPORTED_MODEL_DIR, only_if_is_dirty=False, recursive=True)
+    unreal.log("Created planned first map: hall, imported static props, layout zones, daylight, spawn, and walking GameMode.")
     unreal.SystemLibrary.execute_console_command(None, "QUIT_EDITOR")
 
 
