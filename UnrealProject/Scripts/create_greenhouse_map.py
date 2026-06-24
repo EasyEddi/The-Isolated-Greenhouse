@@ -99,9 +99,9 @@ def smooth_noise(x, y, seed, scale):
 
 
 def make_damaged_brick_png(path, size=2048, seed=73):
-    brick_w = 178
-    brick_h = 78
-    mortar = 9
+    brick_w = 238
+    brick_h = 104
+    mortar = 11
     pixels = []
 
     for y in range(size):
@@ -253,8 +253,8 @@ WALL_THICKNESS = 120
 WALL_HEIGHT = 520
 FLOOR_THICKNESS = 20
 WALL_SURFACE_PANEL_DEPTH = 8
-WALL_PANEL_WIDTH = 140
-WALL_PANEL_HEIGHT = 95
+WALL_PANEL_WIDTH = 72
+WALL_PANEL_HEIGHT = 56
 DAMAGE_CLUSTERS = {
     "back": ((-515, 270, 300, 155, 1201), (315, 395, 235, 130, 1202)),
     "front": ((-240, 310, 270, 160, 1301), (570, 190, 210, 115, 1302)),
@@ -352,7 +352,7 @@ def interval_cells(start, end, step):
 def damage_strength(wall, horizontal, z):
     strength = 0.0
     for center, dz, width, height, seed in DAMAGE_CLUSTERS[wall]:
-        wobble = 0.13 * smooth_noise(horizontal, z, seed, 95)
+        wobble = 0.20 * smooth_noise(horizontal, z, seed, 72) + 0.09 * smooth_noise(horizontal, z, seed + 9, 31)
         normalized = ((horizontal - center) / (width / 2)) ** 2 + ((z - dz) / (height / 2)) ** 2
         strength = max(strength, 1.0 - normalized + wobble)
     return strength
@@ -362,10 +362,11 @@ def add_wall_surface(wall, length, mat_name):
     for horizontal, width in interval_cells(-length / 2, length / 2, WALL_PANEL_WIDTH):
         for z, height in interval_cells(0, WALL_HEIGHT, WALL_PANEL_HEIGHT):
             strength = damage_strength(wall, horizontal, z)
-            if strength > 0.12:
+            chip_noise = 0.18 * smooth_noise(horizontal, z, 9001, 26)
+            if strength + chip_noise > 0.38:
                 continue
 
-            panel_inset = max(0.0, 5.0 * strength)
+            panel_inset = max(0.0, 8.0 * max(strength, 0.0))
             oriented_wall_piece(
                 f"Hall_{wall}_brick_segment_{horizontal:.0f}_{z:.0f}",
                 wall,
@@ -381,51 +382,60 @@ def add_wall_surface(wall, length, mat_name):
 
 def add_damage_cluster(wall, center, z, width, height, seed):
     rng = random.Random(seed)
-    oriented_wall_piece(
-        f"WallDamage_{wall}_{seed}_deep_shadow",
-        wall,
-        center,
-        z,
-        width * 0.72,
-        height * 0.54,
-        8.0,
-        "damage_dark",
-        15.0,
-    )
 
-    for index in range(14):
-        piece_w = rng.uniform(width * 0.16, width * 0.42)
-        piece_h = rng.uniform(height * 0.12, height * 0.28)
-        px = center + rng.uniform(-width * 0.42, width * 0.42)
-        pz = z + rng.uniform(-height * 0.35, height * 0.35)
-        mat_name = "damage_shadow" if index < 3 else "damage_plaster"
+    for index in range(48):
+        angle = rng.uniform(0.0, math.tau)
+        radius = math.sqrt(rng.uniform(0.0, 1.0))
+        px = center + math.cos(angle) * radius * width * rng.uniform(0.10, 0.48)
+        pz = z + math.sin(angle) * radius * height * rng.uniform(0.10, 0.46)
+        edge_fade = 1.0 - min(
+            1.0,
+            ((px - center) / (width * 0.50)) ** 2 + ((pz - z) / (height * 0.48)) ** 2,
+        )
         oriented_wall_piece(
-            f"WallDamage_{wall}_{seed}_chip_{index:02d}",
+            f"WallDamage_{wall}_{seed}_recess_tile_{index:02d}",
             wall,
             px,
             pz,
-            piece_w,
-            piece_h,
-            rng.uniform(4.0, 7.0),
-            mat_name,
-            rng.uniform(7.0, 14.0),
+            rng.uniform(width * 0.055, width * 0.13),
+            rng.uniform(height * 0.045, height * 0.12),
+            rng.uniform(3.0, 7.0),
+            "damage_dark" if index < 30 else "damage_shadow",
+            rng.uniform(14.0, 27.0) * max(0.45, edge_fade),
         )
 
-    for index in range(10):
-        piece_w = rng.uniform(width * 0.10, width * 0.22)
-        piece_h = rng.uniform(height * 0.06, height * 0.15)
-        px = center + rng.choice((-1, 1)) * rng.uniform(width * 0.34, width * 0.56)
-        pz = z + rng.uniform(-height * 0.38, height * 0.38)
+    for index in range(34):
+        angle = rng.uniform(0.0, math.tau)
+        radius = rng.uniform(0.38, 1.03)
+        px = center + math.cos(angle) * radius * width * 0.50
+        pz = z + math.sin(angle) * radius * height * 0.48
+        mat_name = "damage_shadow" if index % 3 == 0 else "damage_plaster"
+        oriented_wall_piece(
+            f"WallDamage_{wall}_{seed}_plaster_lip_{index:02d}",
+            wall,
+            px,
+            pz,
+            rng.uniform(width * 0.045, width * 0.14),
+            rng.uniform(height * 0.035, height * 0.105),
+            rng.uniform(3.0, 6.0),
+            mat_name,
+            rng.uniform(5.0, 15.0),
+        )
+
+    for index in range(28):
+        side = rng.choice((-1, 1))
+        px = center + side * rng.uniform(width * 0.34, width * 0.58)
+        pz = z + rng.uniform(-height * 0.46, height * 0.46)
         oriented_wall_piece(
             f"WallDamage_{wall}_{seed}_broken_edge_{index:02d}",
             wall,
             px,
             pz,
-            piece_w,
-            piece_h,
-            rng.uniform(5.0, 8.0),
+            rng.uniform(width * 0.035, width * 0.12),
+            rng.uniform(height * 0.025, height * 0.09),
+            rng.uniform(4.0, 8.0),
             "damage_broken_brick",
-            rng.uniform(2.0, 6.5),
+            rng.uniform(1.5, 7.0),
         )
 
 
@@ -557,29 +567,29 @@ def main():
             "M_Hall_Damaged_Brick_Wall_Back",
             import_texture("T_Hall_Damaged_Brick_Wall_Back", lambda path: make_damaged_brick_png(path, seed=73)),
             0.91,
-            5.0,
-            2.0,
+            0.24,
+            0.24,
         ),
         "wall_front": make_textured_material(
             "M_Hall_Damaged_Brick_Wall_Front",
             import_texture("T_Hall_Damaged_Brick_Wall_Front", lambda path: make_damaged_brick_png(path, seed=181)),
             0.91,
-            5.0,
-            2.0,
+            0.24,
+            0.24,
         ),
         "wall_left": make_textured_material(
             "M_Hall_Damaged_Brick_Wall_Left",
             import_texture("T_Hall_Damaged_Brick_Wall_Left", lambda path: make_damaged_brick_png(path, seed=409)),
             0.91,
-            7.0,
-            2.0,
+            0.24,
+            0.24,
         ),
         "wall_right": make_textured_material(
             "M_Hall_Damaged_Brick_Wall_Right",
             import_texture("T_Hall_Damaged_Brick_Wall_Right", lambda path: make_damaged_brick_png(path, seed=827)),
             0.91,
-            7.0,
-            2.0,
+            0.24,
+            0.24,
         ),
         "wall_core": make_solid_material(
             "M_Hall_Wall_Dark_Core",
