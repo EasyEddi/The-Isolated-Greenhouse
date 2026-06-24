@@ -82,61 +82,54 @@ def pseudo_noise(x, y, seed):
     return ((value & 1023) / 1023.0) * 2.0 - 1.0
 
 
-def make_damaged_brick_png(path, size=1024, seed=73):
-    rng = random.Random(seed)
-    brick_w = 96
-    brick_h = 42
-    mortar = 5
-    damage_centers = []
-    for _ in range(8):
-        damage_centers.append(
-            (
-                rng.randint(60, size - 60),
-                rng.randint(60, size - 60),
-                rng.randint(35, 130),
-                rng.uniform(0.35, 0.95),
-            )
-        )
+def smooth_noise(x, y, seed, scale):
+    x /= scale
+    y /= scale
+    xi = math.floor(x)
+    yi = math.floor(y)
+    tx = x - xi
+    ty = y - yi
+    tx = tx * tx * (3 - 2 * tx)
+    ty = ty * ty * (3 - 2 * ty)
+    a = pseudo_noise(xi, yi, seed)
+    b = pseudo_noise(xi + 1, yi, seed)
+    c = pseudo_noise(xi, yi + 1, seed)
+    d = pseudo_noise(xi + 1, yi + 1, seed)
+    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty
+
+
+def make_damaged_brick_png(path, size=2048, seed=73):
+    brick_w = 178
+    brick_h = 78
+    mortar = 9
     pixels = []
 
     for y in range(size):
         row = y // brick_h
-        row_wobble = int(18 * math.sin(row * 1.7 + seed) + 9 * math.sin(row * 0.37))
+        row_wobble = int(22 * math.sin(row * 1.7 + seed) + 11 * math.sin(row * 0.37))
         offset = ((brick_w // 2) + row_wobble) if row % 2 else row_wobble
         for x in range(size):
-            rough_x = int(2 * math.sin(y * 0.091 + seed) + 2 * pseudo_noise(x // 11, y // 17, seed))
-            rough_y = int(2 * math.sin(x * 0.071 + seed * 0.3) + 2 * pseudo_noise(x // 19, y // 13, seed + 5))
+            rough_x = int(3 * math.sin(y * 0.047 + seed) + 3 * smooth_noise(x, y, seed, 38))
+            rough_y = int(3 * math.sin(x * 0.039 + seed * 0.3) + 3 * smooth_noise(x, y, seed + 5, 44))
             local_x = (x + offset + rough_x) % brick_w
             local_y = (y + rough_y) % brick_h
             edge_x = min(local_x, brick_w - local_x)
             edge_y = min(local_y, brick_h - local_y)
             mortar_distance = min(edge_x, edge_y)
-            mortar_mix = max(0.0, min(1.0, (mortar + 2 - mortar_distance) / 5.0))
+            mortar_mix = max(0.0, min(1.0, (mortar + 5 - mortar_distance) / 10.0))
             is_mortar = mortar_distance < mortar
 
-            chip_strength = 0.0
-            for cx, cy, radius, weight in damage_centers:
-                distance = math.hypot(x - cx, y - cy)
-                if distance < radius:
-                    edge_noise = (
-                        0.58
-                        + 0.22 * math.sin(x * 0.041 + seed)
-                        + 0.18 * math.sin(y * 0.053)
-                        + 0.14 * math.sin((x + y) * 0.019)
-                    )
-                    chip_strength = max(chip_strength, max(0.0, (1.0 - distance / radius) * edge_noise * weight))
-
             brick_index = (x + offset) // brick_w + row * 19
-            brick_tint = 20 * pseudo_noise(brick_index, row, seed)
-            broad_stain = 13 * math.sin(x * 0.006 + seed * 0.3) + 10 * math.sin(y * 0.009)
-            grain = 8 * math.sin((x // 9) * 0.7) + 6 * math.sin((y // 11) * 0.6)
-            fine_noise = 13 * pseudo_noise(x // 3, y // 3, seed + 11)
-            soot = -18 * max(0.0, pseudo_noise(x // 47, y // 29, seed + 31))
+            brick_tint = 18 * pseudo_noise(brick_index, row, seed)
+            broad_stain = 9 * math.sin(x * 0.003 + seed * 0.3) + 8 * math.sin(y * 0.004)
+            grain = 10 * smooth_noise(x, y, seed + 11, 18) + 7 * smooth_noise(x, y, seed + 17, 7)
+            fine_noise = 4 * math.sin(x * 0.23 + y * 0.11 + seed)
+            soot = -12 * max(0.0, smooth_noise(x, y, seed + 31, 84))
             variation = broad_stain + grain + brick_tint + fine_noise + soot
-            brick_color = (154 + variation, 70 + variation * 0.42, 48 + variation * 0.28)
+            brick_color = (128 + variation, 55 + variation * 0.40, 42 + variation * 0.25)
 
-            mortar_base = 100 + 14 * pseudo_noise(x // 5, y // 5, seed) + 5 * math.sin((x + y) * 0.013)
-            mortar_color = (mortar_base, mortar_base - 5, mortar_base - 14)
+            mortar_base = 86 + 8 * smooth_noise(x, y, seed + 41, 16) + 4 * math.sin((x + y) * 0.006)
+            mortar_color = (mortar_base, mortar_base - 3, mortar_base - 8)
             if is_mortar or mortar_mix > 0.0:
                 color = (
                     brick_color[0] * (1.0 - mortar_mix) + mortar_color[0] * mortar_mix,
@@ -145,14 +138,6 @@ def make_damaged_brick_png(path, size=1024, seed=73):
                 )
             else:
                 color = brick_color
-
-            if chip_strength > 0.18 and not is_mortar:
-                plaster = 136 + 22 * pseudo_noise(x // 7, y // 7, seed + 23)
-                color = (
-                    color[0] * (1 - chip_strength) + plaster * chip_strength,
-                    color[1] * (1 - chip_strength) + (plaster - 8) * chip_strength,
-                    color[2] * (1 - chip_strength) + (plaster - 18) * chip_strength,
-                )
 
             pixels.append(
                 (
@@ -230,6 +215,37 @@ def make_textured_material(name, texture, roughness=0.85, u_tiling=1.0, v_tiling
     return material
 
 
+def make_solid_material(name, color, roughness=0.96):
+    ensure_folder("/Game/Art/Materials")
+    path = f"/Game/Art/Materials/{name}"
+    existing = unreal.EditorAssetLibrary.load_asset(path)
+    if existing:
+        unreal.EditorAssetLibrary.delete_loaded_asset(existing)
+
+    tools = unreal.AssetToolsHelpers.get_asset_tools()
+    material = tools.create_asset(name, "/Game/Art/Materials", unreal.Material, unreal.MaterialFactoryNew())
+
+    color_expr = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionConstant3Vector, -420, 0
+    )
+    color_expr.set_editor_property("constant", unreal.LinearColor(*color))
+    unreal.MaterialEditingLibrary.connect_material_property(
+        color_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
+    )
+
+    roughness_expr = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionConstant, -420, 170
+    )
+    roughness_expr.set_editor_property("r", roughness)
+    unreal.MaterialEditingLibrary.connect_material_property(
+        roughness_expr, "", unreal.MaterialProperty.MP_ROUGHNESS
+    )
+
+    unreal.MaterialEditingLibrary.layout_material_expressions(material)
+    unreal.EditorAssetLibrary.save_loaded_asset(material)
+    return material
+
+
 MATERIALS = {}
 
 
@@ -252,6 +268,96 @@ def cube(label, location, scale, mat_name):
     comp.set_collision_profile_name("BlockAll")
     comp.set_material(0, material(mat_name))
     return actor
+
+
+def damage_cube(label, location, scale, mat_name):
+    actor = cube(label, location, scale, mat_name)
+    actor.set_actor_enable_collision(False)
+    comp = actor.get_component_by_class(unreal.StaticMeshComponent)
+    comp.set_collision_profile_name("NoCollision")
+    return actor
+
+
+def wall_damage_piece(label, wall, horizontal, z, width, height, depth, mat_name):
+    half_length = 1200
+    half_width = 800
+    surface_offset = 1.6
+    if wall == "back":
+        return damage_cube(
+            label,
+            (-half_length + surface_offset, horizontal, z),
+            (depth / 100, width / 100, height / 100),
+            mat_name,
+        )
+    if wall == "front":
+        return damage_cube(
+            label,
+            (half_length - surface_offset, horizontal, z),
+            (depth / 100, width / 100, height / 100),
+            mat_name,
+        )
+    if wall == "left":
+        return damage_cube(
+            label,
+            (horizontal, -half_width + surface_offset, z),
+            (width / 100, depth / 100, height / 100),
+            mat_name,
+        )
+    if wall == "right":
+        return damage_cube(
+            label,
+            (horizontal, half_width - surface_offset, z),
+            (width / 100, depth / 100, height / 100),
+            mat_name,
+        )
+    raise ValueError(f"Unknown wall: {wall}")
+
+
+def add_damage_cluster(wall, center, z, width, height, seed):
+    rng = random.Random(seed)
+    wall_damage_piece(
+        f"WallDamage_{wall}_{seed}_deep_shadow",
+        wall,
+        center,
+        z,
+        width * 0.62,
+        height * 0.48,
+        2.0,
+        "damage_dark",
+    )
+
+    for index in range(10):
+        piece_w = rng.uniform(width * 0.22, width * 0.48)
+        piece_h = rng.uniform(height * 0.14, height * 0.32)
+        px = center + rng.uniform(-width * 0.42, width * 0.42)
+        pz = z + rng.uniform(-height * 0.35, height * 0.35)
+        mat_name = "damage_shadow" if index < 3 else "damage_plaster"
+        wall_damage_piece(
+            f"WallDamage_{wall}_{seed}_chip_{index:02d}",
+            wall,
+            px,
+            pz,
+            piece_w,
+            piece_h,
+            rng.uniform(2.8, 6.5),
+            mat_name,
+        )
+
+    for index in range(6):
+        piece_w = rng.uniform(width * 0.12, width * 0.28)
+        piece_h = rng.uniform(height * 0.07, height * 0.18)
+        px = center + rng.choice((-1, 1)) * rng.uniform(width * 0.34, width * 0.56)
+        pz = z + rng.uniform(-height * 0.38, height * 0.38)
+        wall_damage_piece(
+            f"WallDamage_{wall}_{seed}_broken_edge_{index:02d}",
+            wall,
+            px,
+            pz,
+            piece_w,
+            piece_h,
+            rng.uniform(3.8, 8.0),
+            "damage_broken_brick",
+        )
 
 
 def set_map_game_mode():
@@ -310,6 +416,15 @@ def add_rectangular_hall():
         (hall_length / 100, wall_thickness / 100, wall_height / 100),
         "wall_right",
     )
+
+    add_damage_cluster("back", -515, 270, 300, 155, 1201)
+    add_damage_cluster("back", 315, 395, 235, 130, 1202)
+    add_damage_cluster("front", -240, 310, 270, 160, 1301)
+    add_damage_cluster("front", 570, 190, 210, 115, 1302)
+    add_damage_cluster("left", -770, 345, 310, 170, 1401)
+    add_damage_cluster("left", 430, 225, 240, 135, 1402)
+    add_damage_cluster("right", -420, 410, 260, 150, 1501)
+    add_damage_cluster("right", 830, 285, 330, 170, 1502)
 
 
 def add_daylight():
@@ -373,29 +488,49 @@ def main():
             "M_Hall_Damaged_Brick_Wall_Back",
             import_texture("T_Hall_Damaged_Brick_Wall_Back", lambda path: make_damaged_brick_png(path, seed=73)),
             0.91,
-            8.0,
-            3.0,
+            5.0,
+            2.0,
         ),
         "wall_front": make_textured_material(
             "M_Hall_Damaged_Brick_Wall_Front",
             import_texture("T_Hall_Damaged_Brick_Wall_Front", lambda path: make_damaged_brick_png(path, seed=181)),
             0.91,
-            8.0,
-            3.0,
+            5.0,
+            2.0,
         ),
         "wall_left": make_textured_material(
             "M_Hall_Damaged_Brick_Wall_Left",
             import_texture("T_Hall_Damaged_Brick_Wall_Left", lambda path: make_damaged_brick_png(path, seed=409)),
             0.91,
-            12.0,
-            3.0,
+            7.0,
+            2.0,
         ),
         "wall_right": make_textured_material(
             "M_Hall_Damaged_Brick_Wall_Right",
             import_texture("T_Hall_Damaged_Brick_Wall_Right", lambda path: make_damaged_brick_png(path, seed=827)),
             0.91,
-            12.0,
-            3.0,
+            7.0,
+            2.0,
+        ),
+        "damage_dark": make_solid_material(
+            "M_Hall_Wall_Damage_Dark_Recess",
+            (0.055, 0.048, 0.044, 1.0),
+            0.98,
+        ),
+        "damage_shadow": make_solid_material(
+            "M_Hall_Wall_Damage_Shadow_Plaster",
+            (0.22, 0.20, 0.18, 1.0),
+            0.98,
+        ),
+        "damage_plaster": make_solid_material(
+            "M_Hall_Wall_Damage_Exposed_Plaster",
+            (0.50, 0.47, 0.41, 1.0),
+            0.98,
+        ),
+        "damage_broken_brick": make_solid_material(
+            "M_Hall_Wall_Damage_Broken_Brick_Edge",
+            (0.32, 0.13, 0.08, 1.0),
+            0.96,
         ),
     }
 
