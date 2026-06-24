@@ -391,7 +391,7 @@ def add_damage_cluster(wall, center, z, width, height, seed):
         width * 0.92,
         height * 0.80,
         6.0,
-        "damage_shadow",
+        "damage_plaster",
         22.0,
     )
 
@@ -412,7 +412,7 @@ def add_damage_cluster(wall, center, z, width, height, seed):
             rng.uniform(width * 0.055, width * 0.13),
             rng.uniform(height * 0.045, height * 0.12),
             rng.uniform(3.0, 7.0),
-            "damage_shadow" if index < 44 else "damage_dark",
+            "damage_plaster" if index < 44 else "damage_shadow",
             rng.uniform(14.0, 27.0) * max(0.45, edge_fade),
         )
 
