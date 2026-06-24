@@ -247,19 +247,38 @@ def make_solid_material(name, color, roughness=0.96):
 
 
 MATERIALS = {}
-HALL_LENGTH = 2400
-HALL_WIDTH = 1600
+HALL_FOOTPRINT_SCALE = 1.5
+HALL_LENGTH = int(2400 * HALL_FOOTPRINT_SCALE)
+HALL_WIDTH = int(1600 * HALL_FOOTPRINT_SCALE)
 WALL_THICKNESS = 120
-WALL_HEIGHT = 520
+WALL_HEIGHT = 600
 FLOOR_THICKNESS = 20
 WALL_SURFACE_PANEL_DEPTH = 8
 WALL_PANEL_WIDTH = 72
 WALL_PANEL_HEIGHT = 56
-DAMAGE_CLUSTERS = {
+
+
+def scaled_damage_cluster(horizontal, z, width, height, seed):
+    height_scale = WALL_HEIGHT / 520
+    damage_scale = 1.35
+    return (
+        horizontal * HALL_FOOTPRINT_SCALE,
+        z * height_scale,
+        width * damage_scale,
+        height * height_scale,
+        seed,
+    )
+
+
+BASE_DAMAGE_CLUSTERS = {
     "back": ((-515, 270, 300, 155, 1201), (315, 395, 235, 130, 1202)),
     "front": ((-240, 310, 270, 160, 1301), (570, 190, 210, 115, 1302)),
     "left": ((-770, 345, 310, 170, 1401), (430, 225, 240, 135, 1402)),
     "right": ((-420, 410, 260, 150, 1501), (830, 285, 330, 170, 1502)),
+}
+DAMAGE_CLUSTERS = {
+    wall: tuple(scaled_damage_cluster(*cluster) for cluster in clusters)
+    for wall, clusters in BASE_DAMAGE_CLUSTERS.items()
 }
 
 
@@ -483,7 +502,7 @@ def set_map_game_mode():
 
 
 def add_rectangular_hall():
-    # Unreal cube base size is 100cm. This hall is 24m x 16m with tall open walls.
+    # Unreal cube base size is 100cm. This hall is 36m x 24m with tall open walls.
     hall_length = HALL_LENGTH
     hall_width = HALL_WIDTH
     wall_thickness = WALL_THICKNESS
@@ -566,7 +585,7 @@ def add_daylight():
 
     start = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.PlayerStart,
-        unreal.Vector(-520, 65, 95),
+        unreal.Vector(-780, 100, 95),
         unreal.Rotator(0, 0, 0),
     )
     start.set_actor_label("PlayerStart_Main_Hall")
