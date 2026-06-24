@@ -82,33 +82,37 @@ def pseudo_noise(x, y, seed):
     return ((value & 1023) / 1023.0) * 2.0 - 1.0
 
 
-def make_damaged_brick_png(path, size=768, seed=73):
+def make_damaged_brick_png(path, size=1024, seed=73):
     rng = random.Random(seed)
-    # The cube wall UVs stretch the square texture across a long rectangular wall.
-    # Narrow source bricks compensate for that so they read as normal brick courses in-game.
-    brick_w = 22
-    brick_h = 34
-    mortar = 3
+    brick_w = 96
+    brick_h = 42
+    mortar = 5
     damage_centers = []
-    for _ in range(6):
+    for _ in range(8):
         damage_centers.append(
             (
                 rng.randint(60, size - 60),
                 rng.randint(60, size - 60),
-                rng.randint(28, 92),
-                rng.uniform(0.45, 1.05),
+                rng.randint(35, 130),
+                rng.uniform(0.35, 0.95),
             )
         )
     pixels = []
 
     for y in range(size):
         row = y // brick_h
-        row_wobble = int(10 * math.sin(row * 1.7) + 5 * math.sin(row * 0.37))
+        row_wobble = int(18 * math.sin(row * 1.7 + seed) + 9 * math.sin(row * 0.37))
         offset = ((brick_w // 2) + row_wobble) if row % 2 else row_wobble
         for x in range(size):
-            local_x = (x + offset) % brick_w
-            local_y = y % brick_h
-            is_mortar = local_x < mortar or local_y < mortar
+            rough_x = int(2 * math.sin(y * 0.091 + seed) + 2 * pseudo_noise(x // 11, y // 17, seed))
+            rough_y = int(2 * math.sin(x * 0.071 + seed * 0.3) + 2 * pseudo_noise(x // 19, y // 13, seed + 5))
+            local_x = (x + offset + rough_x) % brick_w
+            local_y = (y + rough_y) % brick_h
+            edge_x = min(local_x, brick_w - local_x)
+            edge_y = min(local_y, brick_h - local_y)
+            mortar_distance = min(edge_x, edge_y)
+            mortar_mix = max(0.0, min(1.0, (mortar + 2 - mortar_distance) / 5.0))
+            is_mortar = mortar_distance < mortar
 
             chip_strength = 0.0
             for cx, cy, radius, weight in damage_centers:
@@ -122,19 +126,28 @@ def make_damaged_brick_png(path, size=768, seed=73):
                     )
                     chip_strength = max(chip_strength, max(0.0, (1.0 - distance / radius) * edge_noise * weight))
 
-            if is_mortar:
-                base = 84 + 12 * pseudo_noise(x // 5, y // 5, seed) + 5 * math.sin((x + y) * 0.013)
-                color = (base, base - 2, base - 7)
+            brick_index = (x + offset) // brick_w + row * 19
+            brick_tint = 20 * pseudo_noise(brick_index, row, seed)
+            broad_stain = 13 * math.sin(x * 0.006 + seed * 0.3) + 10 * math.sin(y * 0.009)
+            grain = 8 * math.sin((x // 9) * 0.7) + 6 * math.sin((y // 11) * 0.6)
+            fine_noise = 13 * pseudo_noise(x // 3, y // 3, seed + 11)
+            soot = -18 * max(0.0, pseudo_noise(x // 47, y // 29, seed + 31))
+            variation = broad_stain + grain + brick_tint + fine_noise + soot
+            brick_color = (154 + variation, 70 + variation * 0.42, 48 + variation * 0.28)
+
+            mortar_base = 100 + 14 * pseudo_noise(x // 5, y // 5, seed) + 5 * math.sin((x + y) * 0.013)
+            mortar_color = (mortar_base, mortar_base - 5, mortar_base - 14)
+            if is_mortar or mortar_mix > 0.0:
+                color = (
+                    brick_color[0] * (1.0 - mortar_mix) + mortar_color[0] * mortar_mix,
+                    brick_color[1] * (1.0 - mortar_mix) + mortar_color[1] * mortar_mix,
+                    brick_color[2] * (1.0 - mortar_mix) + mortar_color[2] * mortar_mix,
+                )
             else:
-                brick_index = (x + offset) // brick_w + row * 17
-                brick_tint = 24 * pseudo_noise(brick_index, row, seed)
-                broad_stain = 16 * math.sin(x * 0.006 + seed * 0.3) + 13 * math.sin(y * 0.009)
-                grain = 10 * math.sin((x // 13) * 0.8) + 7 * math.sin((y // 17) * 0.7)
-                variation = broad_stain + grain + brick_tint + 10 * pseudo_noise(x // 4, y // 4, seed + 11)
-                color = (142 + variation, 67 + variation * 0.34, 45 + variation * 0.24)
+                color = brick_color
 
             if chip_strength > 0.18 and not is_mortar:
-                plaster = 150 + 20 * pseudo_noise(x // 7, y // 7, seed + 23)
+                plaster = 136 + 22 * pseudo_noise(x // 7, y // 7, seed + 23)
                 color = (
                     color[0] * (1 - chip_strength) + plaster * chip_strength,
                     color[1] * (1 - chip_strength) + (plaster - 8) * chip_strength,
@@ -177,7 +190,7 @@ def import_texture(name, generator):
     return texture
 
 
-def make_textured_material(name, texture, roughness=0.85):
+def make_textured_material(name, texture, roughness=0.85, u_tiling=1.0, v_tiling=1.0):
     ensure_folder("/Game/Art/Materials")
     path = f"/Game/Art/Materials/{name}"
     existing = unreal.EditorAssetLibrary.load_asset(path)
@@ -187,10 +200,19 @@ def make_textured_material(name, texture, roughness=0.85):
     tools = unreal.AssetToolsHelpers.get_asset_tools()
     material = tools.create_asset(name, "/Game/Art/Materials", unreal.Material, unreal.MaterialFactoryNew())
 
+    coordinate_expr = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionTextureCoordinate, -680, 0
+    )
+    coordinate_expr.set_editor_property("u_tiling", u_tiling)
+    coordinate_expr.set_editor_property("v_tiling", v_tiling)
+
     texture_expr = unreal.MaterialEditingLibrary.create_material_expression(
         material, unreal.MaterialExpressionTextureSample, -450, 0
     )
     texture_expr.set_editor_property("texture", texture)
+    unreal.MaterialEditingLibrary.connect_material_expressions(
+        coordinate_expr, "", texture_expr, "UVs"
+    )
     unreal.MaterialEditingLibrary.connect_material_property(
         texture_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
     )
@@ -351,21 +373,29 @@ def main():
             "M_Hall_Damaged_Brick_Wall_Back",
             import_texture("T_Hall_Damaged_Brick_Wall_Back", lambda path: make_damaged_brick_png(path, seed=73)),
             0.91,
+            8.0,
+            3.0,
         ),
         "wall_front": make_textured_material(
             "M_Hall_Damaged_Brick_Wall_Front",
             import_texture("T_Hall_Damaged_Brick_Wall_Front", lambda path: make_damaged_brick_png(path, seed=181)),
             0.91,
+            8.0,
+            3.0,
         ),
         "wall_left": make_textured_material(
             "M_Hall_Damaged_Brick_Wall_Left",
             import_texture("T_Hall_Damaged_Brick_Wall_Left", lambda path: make_damaged_brick_png(path, seed=409)),
             0.91,
+            12.0,
+            3.0,
         ),
         "wall_right": make_textured_material(
             "M_Hall_Damaged_Brick_Wall_Right",
             import_texture("T_Hall_Damaged_Brick_Wall_Right", lambda path: make_damaged_brick_png(path, seed=827)),
             0.91,
+            12.0,
+            3.0,
         ),
     }
 
