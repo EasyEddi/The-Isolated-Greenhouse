@@ -775,11 +775,9 @@ def add_free_utility_area(models):
 
 
 def add_planned_room_layout(models):
-    add_residential_area(models)
-    add_greenhouse_work_area(models)
-    add_desk_area(models)
-    add_storage_area(models)
-    add_free_utility_area(models)
+    # Model placement is handled manually while the asset set is still changing.
+    # Keep the generator limited to the playable hall shell and core setup.
+    return
 
 
 def add_daylight():
@@ -919,7 +917,7 @@ def main():
 
     unreal.EditorLevelLibrary.save_current_level()
     unreal.EditorAssetLibrary.save_directory("/Game/Art", only_if_is_dirty=False, recursive=True)
-    unreal.log("Created planned first map: hall shell, layout zone placeholders, daylight, spawn, and walking GameMode.")
+    unreal.log("Created planned first map: hall shell, daylight, spawn, and walking GameMode.")
     unreal.SystemLibrary.execute_console_command(None, "QUIT_EDITOR")
 
 
