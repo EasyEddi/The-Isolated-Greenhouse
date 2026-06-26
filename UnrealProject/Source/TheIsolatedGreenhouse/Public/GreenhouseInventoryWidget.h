@@ -49,6 +49,8 @@ public:
 	void SetInventoryOpen(bool bOpen);
 	bool IsInventoryOpen() const { return bInventoryOpen; }
 	void HandleSlotClicked(int32 SlotIndex);
+	void SelectHotbarSlot(int32 SlotIndex);
+	EGreenhouseInventoryItem GetSelectedHotbarItem() const;
 
 private:
 	static constexpr int32 HotbarSlotCount = 5;
@@ -72,6 +74,7 @@ private:
 	TArray<EGreenhouseInventoryItem> Slots;
 
 	EGreenhouseInventoryItem HeldItem = EGreenhouseInventoryItem::None;
+	int32 SelectedHotbarSlot = 0;
 	bool bInventoryOpen = false;
 	bool bBuilt = false;
 

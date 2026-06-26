@@ -198,6 +198,22 @@ void UGreenhouseInventoryWidget::HandleSlotClicked(int32 SlotIndex)
 	RefreshSlots();
 }
 
+void UGreenhouseInventoryWidget::SelectHotbarSlot(int32 SlotIndex)
+{
+	if (SlotIndex < 0 || SlotIndex >= HotbarSlotCount)
+	{
+		return;
+	}
+
+	SelectedHotbarSlot = SlotIndex;
+	RefreshSlots();
+}
+
+EGreenhouseInventoryItem UGreenhouseInventoryWidget::GetSelectedHotbarItem() const
+{
+	return Slots.IsValidIndex(SelectedHotbarSlot) ? Slots[SelectedHotbarSlot] : EGreenhouseInventoryItem::None;
+}
+
 void UGreenhouseInventoryWidget::AddItem(EGreenhouseInventoryItem Item)
 {
 	for (EGreenhouseInventoryItem& Slot : Slots)
@@ -249,6 +265,11 @@ FText UGreenhouseInventoryWidget::GetItemText(EGreenhouseInventoryItem Item) con
 FLinearColor UGreenhouseInventoryWidget::GetSlotColor(int32 SlotIndex) const
 {
 	const bool bHotbarSlot = SlotIndex < HotbarSlotCount;
+	if (bHotbarSlot && SlotIndex == SelectedHotbarSlot)
+	{
+		return FLinearColor(0.28f, 0.34f, 0.40f, 0.94f);
+	}
+
 	return bHotbarSlot
 		? FLinearColor(0.10f, 0.12f, 0.14f, 0.86f)
 		: FLinearColor(0.075f, 0.085f, 0.095f, 0.90f);

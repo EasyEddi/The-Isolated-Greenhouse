@@ -1,9 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GreenhouseInventoryWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "GreenhousePlayerController.generated.h"
 
+class AGreenhouseHeldItemActor;
 class UGreenhouseInventoryWidget;
 class UInputMappingContext;
 
@@ -16,6 +18,7 @@ public:
 	AGreenhousePlayerController();
 
 	virtual void BeginPlay() override;
+	virtual void PlayerTick(float DeltaTime) override;
 	virtual void SetupInputComponent() override;
 
 private:
@@ -28,8 +31,21 @@ private:
 	UPROPERTY()
 	TObjectPtr<UInputMappingContext> MouseLookMappingContext;
 
+	UPROPERTY()
+	TObjectPtr<AGreenhouseHeldItemActor> HeldItemActor;
+
+	EGreenhouseInventoryItem LastDisplayedHeldItem = EGreenhouseInventoryItem::None;
+
 	void ToggleInventory();
 	void ApplyInventoryInputMode(bool bInventoryOpen);
 	void RegisterInputMappingContexts();
 	void ApplyInitialSpawnView();
+	void SpawnHeldItemActor();
+	void UpdateHeldItemActor();
+	void SelectHotbarSlot(int32 SlotIndex);
+	void SelectHotbarSlotOne();
+	void SelectHotbarSlotTwo();
+	void SelectHotbarSlotThree();
+	void SelectHotbarSlotFour();
+	void SelectHotbarSlotFive();
 };

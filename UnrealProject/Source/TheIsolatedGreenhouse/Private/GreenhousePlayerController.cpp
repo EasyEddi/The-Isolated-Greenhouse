@@ -1,6 +1,7 @@
 #include "GreenhousePlayerController.h"
 
 #include "EnhancedInputSubsystems.h"
+#include "GreenhouseHeldItemActor.h"
 #include "GreenhouseInventoryWidget.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
@@ -8,6 +9,8 @@
 
 AGreenhousePlayerController::AGreenhousePlayerController()
 {
+	PrimaryActorTick.bCanEverTick = true;
+
 	static ConstructorHelpers::FObjectFinder<UInputMappingContext> DefaultMappingContextFinder(TEXT("/Game/Input/IMC_Default"));
 	if (DefaultMappingContextFinder.Succeeded())
 	{
@@ -34,6 +37,16 @@ void AGreenhousePlayerController::BeginPlay()
 		InventoryWidget->AddToViewport();
 		ApplyInventoryInputMode(false);
 	}
+
+	SpawnHeldItemActor();
+	UpdateHeldItemActor();
+}
+
+void AGreenhousePlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	UpdateHeldItemActor();
 }
 
 void AGreenhousePlayerController::RegisterInputMappingContexts()
@@ -80,6 +93,11 @@ void AGreenhousePlayerController::SetupInputComponent()
 
 	check(InputComponent);
 	InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AGreenhousePlayerController::ToggleInventory);
+	InputComponent->BindKey(EKeys::One, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotOne);
+	InputComponent->BindKey(EKeys::Two, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotTwo);
+	InputComponent->BindKey(EKeys::Three, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotThree);
+	InputComponent->BindKey(EKeys::Four, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotFour);
+	InputComponent->BindKey(EKeys::Five, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotFive);
 }
 
 void AGreenhousePlayerController::ToggleInventory()
@@ -112,4 +130,84 @@ void AGreenhousePlayerController::ApplyInventoryInputMode(bool bInventoryOpen)
 	{
 		SetInputMode(FInputModeGameOnly());
 	}
+}
+
+void AGreenhousePlayerController::SpawnHeldItemActor()
+{
+	if (HeldItemActor || !GetWorld())
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = this;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	HeldItemActor = GetWorld()->SpawnActor<AGreenhouseHeldItemActor>(AGreenhouseHeldItemActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
+	if (HeldItemActor)
+	{
+		HeldItemActor->SetActorHiddenInGame(true);
+	}
+}
+
+void AGreenhousePlayerController::UpdateHeldItemActor()
+{
+	if (!InventoryWidget)
+	{
+		return;
+	}
+
+	SpawnHeldItemActor();
+	if (!HeldItemActor || !PlayerCameraManager)
+	{
+		return;
+	}
+
+	const EGreenhouseInventoryItem SelectedItem = InventoryWidget->GetSelectedHotbarItem();
+	if (SelectedItem != LastDisplayedHeldItem)
+	{
+		HeldItemActor->SetHeldItem(SelectedItem);
+		LastDisplayedHeldItem = SelectedItem;
+	}
+
+	const FRotator CameraRotation = PlayerCameraManager->GetCameraRotation();
+	const FVector CameraLocation = PlayerCameraManager->GetCameraLocation();
+	const FVector HandOffset = CameraRotation.RotateVector(FVector(58.0f, 25.0f, -32.0f));
+	const FRotator ItemRotation = CameraRotation + FRotator(-8.0f, 18.0f, 8.0f);
+	HeldItemActor->SetActorLocationAndRotation(CameraLocation + HandOffset, ItemRotation);
+}
+
+void AGreenhousePlayerController::SelectHotbarSlot(int32 SlotIndex)
+{
+	if (!InventoryWidget)
+	{
+		return;
+	}
+
+	InventoryWidget->SelectHotbarSlot(SlotIndex);
+	UpdateHeldItemActor();
+}
+
+void AGreenhousePlayerController::SelectHotbarSlotOne()
+{
+	SelectHotbarSlot(0);
+}
+
+void AGreenhousePlayerController::SelectHotbarSlotTwo()
+{
+	SelectHotbarSlot(1);
+}
+
+void AGreenhousePlayerController::SelectHotbarSlotThree()
+{
+	SelectHotbarSlot(2);
+}
+
+void AGreenhousePlayerController::SelectHotbarSlotFour()
+{
+	SelectHotbarSlot(3);
+}
+
+void AGreenhousePlayerController::SelectHotbarSlotFive()
+{
+	SelectHotbarSlot(4);
 }
