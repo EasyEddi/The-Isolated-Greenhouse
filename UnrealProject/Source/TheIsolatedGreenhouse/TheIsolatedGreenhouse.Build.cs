@@ -11,6 +11,7 @@ public class TheIsolatedGreenhouse : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"EnhancedInput",
 			"InputCore",
 			"UMG",
 			"Slate",

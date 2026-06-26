@@ -1,11 +1,32 @@
 #include "GreenhousePlayerController.h"
 
+#include "EnhancedInputSubsystems.h"
 #include "GreenhouseInventoryWidget.h"
 #include "InputCoreTypes.h"
+#include "InputMappingContext.h"
+#include "UObject/ConstructorHelpers.h"
+
+AGreenhousePlayerController::AGreenhousePlayerController()
+{
+	static ConstructorHelpers::FObjectFinder<UInputMappingContext> DefaultMappingContextFinder(TEXT("/Game/Input/IMC_Default"));
+	if (DefaultMappingContextFinder.Succeeded())
+	{
+		DefaultMappingContext = DefaultMappingContextFinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UInputMappingContext> MouseLookMappingContextFinder(TEXT("/Game/Input/IMC_MouseLook"));
+	if (MouseLookMappingContextFinder.Succeeded())
+	{
+		MouseLookMappingContext = MouseLookMappingContextFinder.Object;
+	}
+}
 
 void AGreenhousePlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	RegisterInputMappingContexts();
+	ApplyInitialSpawnView();
 
 	InventoryWidget = CreateWidget<UGreenhouseInventoryWidget>(this, UGreenhouseInventoryWidget::StaticClass());
 	if (InventoryWidget)
@@ -13,6 +34,44 @@ void AGreenhousePlayerController::BeginPlay()
 		InventoryWidget->AddToViewport();
 		ApplyInventoryInputMode(false);
 	}
+}
+
+void AGreenhousePlayerController::RegisterInputMappingContexts()
+{
+	if (!GetLocalPlayer())
+	{
+		return;
+	}
+
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	if (!InputSubsystem)
+	{
+		return;
+	}
+
+	if (DefaultMappingContext)
+	{
+		InputSubsystem->AddMappingContext(DefaultMappingContext, 0);
+	}
+
+	if (MouseLookMappingContext)
+	{
+		InputSubsystem->AddMappingContext(MouseLookMappingContext, 1);
+	}
+}
+
+void AGreenhousePlayerController::ApplyInitialSpawnView()
+{
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn)
+	{
+		return;
+	}
+
+	FRotator SpawnViewRotation = ControlledPawn->GetActorRotation();
+	SpawnViewRotation.Pitch = 0.0f;
+	SpawnViewRotation.Roll = 0.0f;
+	SetControlRotation(SpawnViewRotation);
 }
 
 void AGreenhousePlayerController::SetupInputComponent()
