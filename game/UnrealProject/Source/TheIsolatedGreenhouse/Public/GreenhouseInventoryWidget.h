@@ -51,6 +51,8 @@ public:
 	void HandleSlotClicked(int32 SlotIndex);
 	void SelectHotbarSlot(int32 SlotIndex);
 	EGreenhouseInventoryItem GetSelectedHotbarItem() const;
+	bool ConsumeSelectedHotbarItem(EGreenhouseInventoryItem Item);
+	void AddItem(EGreenhouseInventoryItem Item);
 
 private:
 	static constexpr int32 HotbarSlotCount = 5;
@@ -73,16 +75,20 @@ private:
 	UPROPERTY()
 	TArray<EGreenhouseInventoryItem> Slots;
 
+	UPROPERTY()
+	TArray<int32> SlotStacks;
+
 	EGreenhouseInventoryItem HeldItem = EGreenhouseInventoryItem::None;
+	int32 HeldItemStack = 0;
 	int32 SelectedHotbarSlot = 0;
 	bool bInventoryOpen = false;
 	bool bBuilt = false;
 
 	void BuildInterface();
 	UGreenhouseInventorySlotButton* CreateSlotButton(int32 SlotIndex, const FVector2D& Size);
-	void AddItem(EGreenhouseInventoryItem Item);
+	bool HasItem(EGreenhouseInventoryItem Item) const;
 	void RefreshSlots();
-	FText GetItemText(EGreenhouseInventoryItem Item) const;
+	FText GetItemText(EGreenhouseInventoryItem Item, int32 StackCount = 1) const;
 	FLinearColor GetSlotColor(int32 SlotIndex) const;
 
 	UFUNCTION()

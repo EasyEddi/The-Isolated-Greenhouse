@@ -4,9 +4,11 @@
 #include "Camera/CameraComponent.h"
 #include "GreenhouseHeldItemActor.h"
 #include "GreenhouseInventoryWidget.h"
+#include "GreenhousePlantingPlotActor.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "Components/SceneComponent.h"
+#include "EngineUtils.h"
 #include "UObject/ConstructorHelpers.h"
 
 AGreenhousePlayerController::AGreenhousePlayerController()
@@ -94,7 +96,7 @@ void AGreenhousePlayerController::SetupInputComponent()
 	Super::SetupInputComponent();
 
 	check(InputComponent);
-	InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AGreenhousePlayerController::ToggleInventory);
+	InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AGreenhousePlayerController::HandleInteractOrInventory);
 	InputComponent->BindKey(EKeys::One, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotOne);
 	InputComponent->BindKey(EKeys::Two, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotTwo);
 	InputComponent->BindKey(EKeys::Three, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotThree);
@@ -111,6 +113,64 @@ void AGreenhousePlayerController::ToggleInventory()
 
 	InventoryWidget->ToggleInventory();
 	ApplyInventoryInputMode(InventoryWidget->IsInventoryOpen());
+}
+
+void AGreenhousePlayerController::HandleInteractOrInventory()
+{
+	if (InventoryWidget && !InventoryWidget->IsInventoryOpen() && TryPlantSelectedLily())
+	{
+		return;
+	}
+
+	ToggleInventory();
+}
+
+bool AGreenhousePlayerController::TryPlantSelectedLily()
+{
+	if (!InventoryWidget || InventoryWidget->GetSelectedHotbarItem() != EGreenhouseInventoryItem::Lily)
+	{
+		return false;
+	}
+
+	const APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn || !GetWorld())
+	{
+		return false;
+	}
+
+	AGreenhousePlantingPlotActor* ClosestPlot = nullptr;
+	float ClosestDistanceSq = TNumericLimits<float>::Max();
+	const FVector PlayerLocation = ControlledPawn->GetActorLocation();
+
+	for (TActorIterator<AGreenhousePlantingPlotActor> PlotIt(GetWorld()); PlotIt; ++PlotIt)
+	{
+		AGreenhousePlantingPlotActor* Plot = *PlotIt;
+		if (!Plot || !Plot->CanPlantAt(PlayerLocation))
+		{
+			continue;
+		}
+
+		const float DistanceSq = FVector::DistSquared2D(PlayerLocation, Plot->GetActorLocation());
+		if (DistanceSq < ClosestDistanceSq)
+		{
+			ClosestDistanceSq = DistanceSq;
+			ClosestPlot = Plot;
+		}
+	}
+
+	if (!ClosestPlot || !InventoryWidget->ConsumeSelectedHotbarItem(EGreenhouseInventoryItem::Lily))
+	{
+		return false;
+	}
+
+	const bool bPlanted = ClosestPlot->PlantLily();
+	if (!bPlanted)
+	{
+		InventoryWidget->AddItem(EGreenhouseInventoryItem::Lily);
+	}
+
+	UpdateHeldItemActor();
+	return bPlanted;
 }
 
 void AGreenhousePlayerController::ApplyInventoryInputMode(bool bInventoryOpen)

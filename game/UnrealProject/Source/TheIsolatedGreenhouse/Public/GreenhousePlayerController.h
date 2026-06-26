@@ -6,6 +6,7 @@
 #include "GreenhousePlayerController.generated.h"
 
 class AGreenhouseHeldItemActor;
+class AGreenhousePlantingPlotActor;
 class UGreenhouseInventoryWidget;
 class UInputMappingContext;
 class USceneComponent;
@@ -38,6 +39,8 @@ private:
 	EGreenhouseInventoryItem LastDisplayedHeldItem = EGreenhouseInventoryItem::None;
 
 	void ToggleInventory();
+	void HandleInteractOrInventory();
+	bool TryPlantSelectedLily();
 	void ApplyInventoryInputMode(bool bInventoryOpen);
 	void RegisterInputMappingContexts();
 	void ApplyInitialSpawnView();

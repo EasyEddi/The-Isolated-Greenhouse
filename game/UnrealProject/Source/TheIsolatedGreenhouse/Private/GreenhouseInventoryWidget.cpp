@@ -51,6 +51,10 @@ void UGreenhouseInventoryWidget::NativeConstruct()
 	{
 		Slots.Init(EGreenhouseInventoryItem::None, TotalSlotCount);
 	}
+	if (SlotStacks.Num() != TotalSlotCount)
+	{
+		SlotStacks.Init(0, TotalSlotCount);
+	}
 
 	SetInventoryOpen(false);
 	RefreshSlots();
@@ -59,6 +63,7 @@ void UGreenhouseInventoryWidget::NativeConstruct()
 void UGreenhouseInventoryWidget::BuildInterface()
 {
 	Slots.Init(EGreenhouseInventoryItem::None, TotalSlotCount);
+	SlotStacks.Init(0, TotalSlotCount);
 	SlotTexts.SetNum(TotalSlotCount);
 	SlotBackgrounds.SetNum(TotalSlotCount);
 
@@ -188,11 +193,14 @@ void UGreenhouseInventoryWidget::HandleSlotClicked(int32 SlotIndex)
 	if (HeldItem == EGreenhouseInventoryItem::None)
 	{
 		HeldItem = Slots[SlotIndex];
+		HeldItemStack = SlotStacks.IsValidIndex(SlotIndex) ? SlotStacks[SlotIndex] : 0;
 		Slots[SlotIndex] = EGreenhouseInventoryItem::None;
+		SlotStacks[SlotIndex] = 0;
 	}
 	else
 	{
 		Swap(HeldItem, Slots[SlotIndex]);
+		Swap(HeldItemStack, SlotStacks[SlotIndex]);
 	}
 
 	RefreshSlots();
@@ -214,17 +222,75 @@ EGreenhouseInventoryItem UGreenhouseInventoryWidget::GetSelectedHotbarItem() con
 	return Slots.IsValidIndex(SelectedHotbarSlot) ? Slots[SelectedHotbarSlot] : EGreenhouseInventoryItem::None;
 }
 
+bool UGreenhouseInventoryWidget::ConsumeSelectedHotbarItem(EGreenhouseInventoryItem Item)
+{
+	if (!Slots.IsValidIndex(SelectedHotbarSlot) || Slots[SelectedHotbarSlot] != Item)
+	{
+		return false;
+	}
+
+	if (SlotStacks[SelectedHotbarSlot] > 1)
+	{
+		--SlotStacks[SelectedHotbarSlot];
+	}
+	else
+	{
+		Slots[SelectedHotbarSlot] = EGreenhouseInventoryItem::None;
+		SlotStacks[SelectedHotbarSlot] = 0;
+	}
+
+	RefreshSlots();
+	return true;
+}
+
 void UGreenhouseInventoryWidget::AddItem(EGreenhouseInventoryItem Item)
 {
-	for (EGreenhouseInventoryItem& Slot : Slots)
+	if (Item == EGreenhouseInventoryItem::WateringCan && HasItem(Item))
 	{
-		if (Slot == EGreenhouseInventoryItem::None)
+		return;
+	}
+
+	if (Item == EGreenhouseInventoryItem::Lily)
+	{
+		for (int32 SlotIndex = 0; SlotIndex < Slots.Num(); ++SlotIndex)
 		{
-			Slot = Item;
+			if (Slots[SlotIndex] == EGreenhouseInventoryItem::Lily)
+			{
+				++SlotStacks[SlotIndex];
+				RefreshSlots();
+				return;
+			}
+		}
+	}
+
+	for (int32 SlotIndex = 0; SlotIndex < Slots.Num(); ++SlotIndex)
+	{
+		if (Slots[SlotIndex] == EGreenhouseInventoryItem::None)
+		{
+			Slots[SlotIndex] = Item;
+			SlotStacks[SlotIndex] = 1;
 			RefreshSlots();
 			return;
 		}
 	}
+}
+
+bool UGreenhouseInventoryWidget::HasItem(EGreenhouseInventoryItem Item) const
+{
+	if (HeldItem == Item)
+	{
+		return true;
+	}
+
+	for (EGreenhouseInventoryItem Slot : Slots)
+	{
+		if (Slot == Item)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void UGreenhouseInventoryWidget::RefreshSlots()
@@ -233,7 +299,9 @@ void UGreenhouseInventoryWidget::RefreshSlots()
 	{
 		if (SlotTexts[SlotIndex])
 		{
-			SlotTexts[SlotIndex]->SetText(GetItemText(Slots.IsValidIndex(SlotIndex) ? Slots[SlotIndex] : EGreenhouseInventoryItem::None));
+			const EGreenhouseInventoryItem Item = Slots.IsValidIndex(SlotIndex) ? Slots[SlotIndex] : EGreenhouseInventoryItem::None;
+			const int32 StackCount = SlotStacks.IsValidIndex(SlotIndex) ? SlotStacks[SlotIndex] : 0;
+			SlotTexts[SlotIndex]->SetText(GetItemText(Item, StackCount));
 		}
 
 		if (SlotBackgrounds[SlotIndex])
@@ -245,15 +313,19 @@ void UGreenhouseInventoryWidget::RefreshSlots()
 	if (HeldItemText)
 	{
 		const bool bHoldingItem = HeldItem != EGreenhouseInventoryItem::None;
-		HeldItemText->SetText(bHoldingItem ? FText::Format(FText::FromString(TEXT("Holding: {0}")), GetItemText(HeldItem)) : FText::GetEmpty());
+		HeldItemText->SetText(bHoldingItem ? FText::Format(FText::FromString(TEXT("Holding: {0}")), GetItemText(HeldItem, HeldItemStack)) : FText::GetEmpty());
 	}
 }
 
-FText UGreenhouseInventoryWidget::GetItemText(EGreenhouseInventoryItem Item) const
+FText UGreenhouseInventoryWidget::GetItemText(EGreenhouseInventoryItem Item, int32 StackCount) const
 {
 	switch (Item)
 	{
 	case EGreenhouseInventoryItem::Lily:
+		if (StackCount > 1)
+		{
+			return FText::Format(FText::FromString(TEXT("Lily\nx{0}")), FText::AsNumber(StackCount));
+		}
 		return FText::FromString(TEXT("Lily"));
 	case EGreenhouseInventoryItem::WateringCan:
 		return FText::FromString(TEXT("Watering\ncan"));

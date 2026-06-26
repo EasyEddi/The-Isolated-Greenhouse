@@ -11,4 +11,6 @@ class THEISOLATEDGREENHOUSE_API AGreenhouseGameMode : public AGameModeBase
 
 public:
 	AGreenhouseGameMode();
+
+	virtual void BeginPlay() override;
 };
