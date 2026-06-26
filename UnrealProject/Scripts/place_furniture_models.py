@@ -23,8 +23,8 @@ MAIN_X_MIN = -MAIN_LENGTH / 2.0
 MAIN_X_MAX = MAIN_LENGTH / 2.0
 SIDE_X_MIN = MAIN_X_MIN - SIDE_LENGTH
 Y_BOTTOM = -50.0
-Y_SIDE_TOP = Y_BOTTOM + SIDE_WIDTH
 Y_TOP = Y_BOTTOM + MAIN_WIDTH
+Y_SIDE_BOTTOM = Y_TOP - SIDE_WIDTH
 
 
 FURNITURE = [
@@ -392,7 +392,7 @@ def resize_hall_shell():
     spawn_floor_piece(
         "Hall_Floor_side_750x1000",
         (SIDE_X_MIN + MAIN_X_MIN) / 2.0,
-        (Y_BOTTOM + Y_SIDE_TOP) / 2.0,
+        (Y_SIDE_BOTTOM + Y_TOP) / 2.0,
         SIDE_LENGTH,
         SIDE_WIDTH,
         floor_material,
@@ -401,7 +401,7 @@ def resize_hall_shell():
     spawn_horizontal_wall(
         "Hall_Wall_bottom_green_750",
         (SIDE_X_MIN + MAIN_X_MIN) / 2.0,
-        Y_BOTTOM,
+        Y_SIDE_BOTTOM,
         -1.0,
         SIDE_LENGTH,
         wall_materials[750.0],
@@ -434,14 +434,14 @@ def resize_hall_shell():
         "Hall_Wall_cyan_500",
         MAIN_X_MIN,
         -1.0,
-        (Y_SIDE_TOP + Y_TOP) / 2.0,
-        Y_TOP - Y_SIDE_TOP,
+        (Y_BOTTOM + Y_SIDE_BOTTOM) / 2.0,
+        Y_SIDE_BOTTOM - Y_BOTTOM,
         wall_materials[500.0],
     )
     spawn_horizontal_wall(
         "Hall_Wall_top_green_750",
         (SIDE_X_MIN + MAIN_X_MIN) / 2.0,
-        Y_SIDE_TOP,
+        Y_TOP,
         1.0,
         SIDE_LENGTH,
         wall_materials[750.0],
@@ -450,7 +450,7 @@ def resize_hall_shell():
         "Hall_Wall_left_blue_1000",
         SIDE_X_MIN,
         -1.0,
-        (Y_BOTTOM + Y_SIDE_TOP) / 2.0,
+        (Y_SIDE_BOTTOM + Y_TOP) / 2.0,
         SIDE_WIDTH,
         wall_materials[1000.0],
     )
