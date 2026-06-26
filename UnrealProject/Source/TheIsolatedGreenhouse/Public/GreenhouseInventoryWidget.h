@@ -42,6 +42,7 @@ class THEISOLATEDGREENHOUSE_API UGreenhouseInventoryWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
 
 	void ToggleInventory();

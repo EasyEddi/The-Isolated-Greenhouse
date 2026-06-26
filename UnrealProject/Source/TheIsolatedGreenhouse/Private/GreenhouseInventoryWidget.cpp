@@ -10,6 +10,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Widgets/SWidget.h"
 
 void UGreenhouseInventorySlotButton::Setup(UGreenhouseInventoryWidget* InInventoryWidget, int32 InSlotIndex)
 {
@@ -26,15 +27,25 @@ void UGreenhouseInventorySlotButton::HandleClicked()
 	}
 }
 
-void UGreenhouseInventoryWidget::NativeConstruct()
+TSharedRef<SWidget> UGreenhouseInventoryWidget::RebuildWidget()
 {
-	Super::NativeConstruct();
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"), RF_Transient);
+	}
 
 	if (!bBuilt)
 	{
 		BuildInterface();
 		bBuilt = true;
 	}
+
+	return Super::RebuildWidget();
+}
+
+void UGreenhouseInventoryWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
 
 	if (Slots.Num() != TotalSlotCount)
 	{
