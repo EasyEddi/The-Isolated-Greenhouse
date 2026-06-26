@@ -13,4 +13,7 @@ public:
 	AGreenhouseGameMode();
 
 	virtual void BeginPlay() override;
+
+private:
+	void RepairWallMaterials();
 };

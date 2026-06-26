@@ -254,7 +254,7 @@ void UGreenhouseInventoryWidget::AddItem(EGreenhouseInventoryItem Item)
 	{
 		for (int32 SlotIndex = 0; SlotIndex < Slots.Num(); ++SlotIndex)
 		{
-			if (Slots[SlotIndex] == EGreenhouseInventoryItem::Lily)
+			if (Slots[SlotIndex] == EGreenhouseInventoryItem::Lily && SlotStacks[SlotIndex] < MaxStackCount)
 			{
 				++SlotStacks[SlotIndex];
 				RefreshSlots();

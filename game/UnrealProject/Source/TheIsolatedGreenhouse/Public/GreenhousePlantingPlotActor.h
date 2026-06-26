@@ -5,6 +5,7 @@
 #include "GreenhousePlantingPlotActor.generated.h"
 
 class UStaticMeshComponent;
+class USceneComponent;
 
 UCLASS()
 class THEISOLATEDGREENHOUSE_API AGreenhousePlantingPlotActor : public AActor
@@ -21,6 +22,9 @@ public:
 
 private:
 	UPROPERTY()
+	TObjectPtr<USceneComponent> SceneRoot;
+
+	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> PlotMeshComponent;
 
 	UPROPERTY()
@@ -32,4 +36,6 @@ private:
 
 	static constexpr float InteractionRadius = 180.0f;
 	static constexpr float GrowthDuration = 5.0f;
+	static constexpr float InitialLilyScale = 0.04f;
+	static constexpr float FullLilyScale = 0.45f;
 };

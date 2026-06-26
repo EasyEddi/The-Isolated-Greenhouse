@@ -58,6 +58,7 @@ private:
 	static constexpr int32 HotbarSlotCount = 5;
 	static constexpr int32 InventoryColumnCount = 9;
 	static constexpr int32 InventoryRowCount = 3;
+	static constexpr int32 MaxStackCount = 10;
 	static constexpr int32 TotalSlotCount = HotbarSlotCount + InventoryColumnCount * InventoryRowCount;
 
 	UPROPERTY()
