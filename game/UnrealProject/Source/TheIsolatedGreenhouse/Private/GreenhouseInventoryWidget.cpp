@@ -282,9 +282,9 @@ bool UGreenhouseInventoryWidget::HasItem(EGreenhouseInventoryItem Item) const
 		return true;
 	}
 
-	for (EGreenhouseInventoryItem Slot : Slots)
+	for (EGreenhouseInventoryItem SlotItem : Slots)
 	{
-		if (Slot == Item)
+		if (SlotItem == Item)
 		{
 			return true;
 		}
