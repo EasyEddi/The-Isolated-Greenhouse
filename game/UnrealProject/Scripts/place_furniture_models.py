@@ -12,12 +12,14 @@ BRICK_WALL_SOURCE = os.path.join(PROJECT_ROOT, "SourceTextures", "Walls", "brick
 CUBE = "/Engine/BasicShapes/Cube.Cube"
 
 MAIN_LENGTH = 2350.0
-MAIN_WIDTH = 1500.0
 SIDE_LENGTH = 750.0
 SIDE_WIDTH = 1000.0
+FAUCET_WALL_LENGTH = 1000.0
+MAIN_WIDTH = SIDE_WIDTH + FAUCET_WALL_LENGTH
 WALL_HEIGHT = 600.0
 WALL_THICKNESS = 120.0
 FLOOR_THICKNESS = 20.0
+PRESERVE_EXISTING_GENERATED_ACTORS = True
 
 MAIN_X_MIN = -MAIN_LENGTH / 2.0
 MAIN_X_MAX = MAIN_LENGTH / 2.0
@@ -176,6 +178,8 @@ def make_textured_material(name, texture, roughness, u_tiling, v_tiling):
     path = f"/Game/Art/Materials/{name}"
     existing = unreal.EditorAssetLibrary.load_asset(path)
     if existing:
+        if PRESERVE_EXISTING_GENERATED_ACTORS:
+            return existing
         unreal.EditorAssetLibrary.delete_loaded_asset(existing)
 
     material = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
@@ -229,7 +233,18 @@ def resize_actor(label, location, scale, material=None):
     return False
 
 
+def find_actor_by_label(label):
+    for actor in unreal.EditorLevelLibrary.get_all_level_actors():
+        if actor.get_actor_label() == label:
+            return actor
+    return None
+
+
 def destroy_generated_hall_shell():
+    if PRESERVE_EXISTING_GENERATED_ACTORS:
+        unreal.log("Preserving generated hall shell actors; no Hall_/WallDamage_ actors were removed.")
+        return 0
+
     removed = 0
     for actor in list(unreal.EditorLevelLibrary.get_all_level_actors()):
         label = actor.get_actor_label()
@@ -321,6 +336,12 @@ def load_material(path):
 
 
 def spawn_cube(label, location, scale, material=None):
+    if PRESERVE_EXISTING_GENERATED_ACTORS:
+        existing_actor = find_actor_by_label(label)
+        if existing_actor:
+            unreal.log(f"Preserved existing generated actor without moving it: {label}")
+            return existing_actor
+
     actor = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.StaticMeshActor,
         unreal.Vector(*location),
@@ -371,18 +392,16 @@ def spawn_vertical_wall(label, x_inner, outward_sign, center_y, length, material
 def resize_hall_shell():
     texture = import_source_texture("T_Hall_Brick_Wall", BRICK_WALL_SOURCE)
     floor_material = load_material("/Game/Art/Materials/M_Hall_Rubber_Floor")
+    wall_lengths = sorted({MAIN_LENGTH, MAIN_WIDTH, SIDE_WIDTH, SIDE_LENGTH, FAUCET_WALL_LENGTH})
     wall_materials = {
-        2350.0: material_for_wall_length("M_Hall_Brick_Wall_2350", texture, 2350.0),
-        1500.0: material_for_wall_length("M_Hall_Brick_Wall_1500", texture, 1500.0),
-        1000.0: material_for_wall_length("M_Hall_Brick_Wall_1000", texture, 1000.0),
-        750.0: material_for_wall_length("M_Hall_Brick_Wall_750", texture, 750.0),
-        500.0: material_for_wall_length("M_Hall_Brick_Wall_500", texture, 500.0),
+        length: material_for_wall_length(f"M_Hall_Brick_Wall_{int(length)}", texture, length)
+        for length in wall_lengths
     }
 
     destroy_generated_hall_shell()
 
     spawn_floor_piece(
-        "Hall_Floor_main_2350x1500",
+        f"Hall_Floor_main_{int(MAIN_LENGTH)}x{int(MAIN_WIDTH)}",
         (MAIN_X_MIN + MAIN_X_MAX) / 2.0,
         (Y_BOTTOM + Y_TOP) / 2.0,
         MAIN_LENGTH,
@@ -415,12 +434,12 @@ def resize_hall_shell():
         wall_materials[2350.0],
     )
     spawn_vertical_wall(
-        "Hall_Wall_right_brown_1500",
+        f"Hall_Wall_right_brown_{int(MAIN_WIDTH)}",
         MAIN_X_MAX,
         1.0,
         (Y_BOTTOM + Y_TOP) / 2.0,
         MAIN_WIDTH,
-        wall_materials[1500.0],
+        wall_materials[MAIN_WIDTH],
     )
     spawn_horizontal_wall(
         "Hall_Wall_top_red_2350",
@@ -431,12 +450,12 @@ def resize_hall_shell():
         wall_materials[2350.0],
     )
     spawn_vertical_wall(
-        "Hall_Wall_cyan_500",
+        f"Hall_Wall_cyan_{int(FAUCET_WALL_LENGTH)}",
         MAIN_X_MIN,
         -1.0,
         (Y_BOTTOM + Y_SIDE_BOTTOM) / 2.0,
-        Y_SIDE_BOTTOM - Y_BOTTOM,
-        wall_materials[500.0],
+        FAUCET_WALL_LENGTH,
+        wall_materials[FAUCET_WALL_LENGTH],
     )
     spawn_horizontal_wall(
         "Hall_Wall_top_green_750",
@@ -455,7 +474,10 @@ def resize_hall_shell():
         wall_materials[1000.0],
     )
 
-    unreal.log("Rebuilt hall shell from floor plan: main=23.5mx15m side=7.5mx10m cyan=5m")
+    unreal.log(
+        f"Rebuilt hall shell from floor plan: main={MAIN_LENGTH / 100:.1f}mx{MAIN_WIDTH / 100:.1f}m "
+        f"side={SIDE_LENGTH / 100:.1f}mx{SIDE_WIDTH / 100:.1f}m faucet_wall={FAUCET_WALL_LENGTH / 100:.1f}m"
+    )
 
 
 def yaw_rotation(yaw):
@@ -476,6 +498,10 @@ def actor_rotation(spec):
 
 
 def remove_previous_generated_furniture():
+    if PRESERVE_EXISTING_GENERATED_ACTORS:
+        unreal.log("Preserving generated furniture actors; no MVP_Furniture_ actors were removed.")
+        return 0
+
     removed = 0
     for actor in list(unreal.EditorLevelLibrary.get_all_level_actors()):
         if actor.get_actor_label().startswith(ACTOR_PREFIX) and actor.get_actor_label() != BED_LABEL:
@@ -485,13 +511,20 @@ def remove_previous_generated_furniture():
 
 
 def place_actor(spec):
+    label = ACTOR_PREFIX + spec["label"]
+    if PRESERVE_EXISTING_GENERATED_ACTORS:
+        existing_actor = find_actor_by_label(label)
+        if existing_actor:
+            unreal.log(f"Preserved existing furniture actor without moving it: {label}")
+            return existing_actor
+
     mesh = load_mesh(spec["asset"])
     actor = unreal.EditorLevelLibrary.spawn_actor_from_class(
         unreal.StaticMeshActor,
         unreal.Vector(*spec["location"]),
         actor_rotation(spec),
     )
-    actor.set_actor_label(ACTOR_PREFIX + spec["label"])
+    actor.set_actor_label(label)
 
     scale3d = spec.get("scale3d")
     if scale3d:
@@ -521,6 +554,17 @@ def place_actor(spec):
 
 
 def ensure_player_start():
+    existing_start = find_actor_by_label("PlayerStart_Main_Hall")
+    if existing_start:
+        unreal.log("Preserved existing PlayerStart_Main_Hall without moving it.")
+        return
+
+    if PRESERVE_EXISTING_GENERATED_ACTORS:
+        for actor in unreal.EditorLevelLibrary.get_all_level_actors():
+            if isinstance(actor, unreal.PlayerStart):
+                unreal.log(f"Preserved existing PlayerStart without moving it: {actor.get_actor_label()}")
+                return
+
     for actor in list(unreal.EditorLevelLibrary.get_all_level_actors()):
         if actor.get_actor_label() == "PlayerStart_Main_Hall" or isinstance(actor, unreal.PlayerStart):
             unreal.EditorLevelLibrary.destroy_actor(actor)

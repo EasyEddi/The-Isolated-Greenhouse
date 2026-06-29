@@ -5,8 +5,11 @@
 #include "GreenhouseHeldItemActor.h"
 #include "GreenhouseInventoryWidget.h"
 #include "GreenhousePlantingPlotActor.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "EngineUtils.h"
 #include "UObject/ConstructorHelpers.h"
@@ -34,6 +37,7 @@ void AGreenhousePlayerController::BeginPlay()
 
 	RegisterInputMappingContexts();
 	ApplyInitialSpawnView();
+	ConfigurePlayerCollision();
 
 	InventoryWidget = CreateWidget<UGreenhouseInventoryWidget>(this, UGreenhouseInventoryWidget::StaticClass());
 	if (InventoryWidget)
@@ -91,6 +95,38 @@ void AGreenhousePlayerController::ApplyInitialSpawnView()
 	SetControlRotation(SpawnViewRotation);
 }
 
+void AGreenhousePlayerController::ConfigurePlayerCollision()
+{
+	ACharacter* ControlledCharacter = Cast<ACharacter>(GetPawn());
+	if (!ControlledCharacter)
+	{
+		return;
+	}
+
+	if (UCapsuleComponent* CapsuleComponent = ControlledCharacter->GetCapsuleComponent())
+	{
+		constexpr float DoorFriendlyRadiusCm = 24.0f;
+		constexpr float FirstPersonHalfHeightCm = 90.0f;
+		CapsuleComponent->SetCapsuleSize(DoorFriendlyRadiusCm, FirstPersonHalfHeightCm, true);
+	}
+
+	if (UCameraComponent* CameraComponent = ControlledCharacter->FindComponentByClass<UCameraComponent>())
+	{
+		constexpr float EyeHeightCm = 170.0f;
+		constexpr float FirstPersonHalfHeightCm = 90.0f;
+		CameraComponent->SetRelativeLocation(FVector(0.0f, 0.0f, EyeHeightCm - FirstPersonHalfHeightCm));
+	}
+
+	if (UCharacterMovementComponent* MovementComponent = ControlledCharacter->GetCharacterMovement())
+	{
+		MovementComponent->MaxStepHeight = 90.0f;
+		MovementComponent->PerchAdditionalHeight = 45.0f;
+		MovementComponent->PerchRadiusThreshold = 0.0f;
+		MovementComponent->SetWalkableFloorAngle(60.0f);
+		MovementComponent->bUseFlatBaseForFloorChecks = false;
+	}
+}
+
 void AGreenhousePlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -102,6 +138,10 @@ void AGreenhousePlayerController::SetupInputComponent()
 	InputComponent->BindKey(EKeys::Three, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotThree);
 	InputComponent->BindKey(EKeys::Four, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotFour);
 	InputComponent->BindKey(EKeys::Five, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotFive);
+	InputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &AGreenhousePlayerController::StartSprint);
+	InputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &AGreenhousePlayerController::StopSprint);
+	InputComponent->BindKey(EKeys::RightShift, IE_Pressed, this, &AGreenhousePlayerController::StartSprint);
+	InputComponent->BindKey(EKeys::RightShift, IE_Released, this, &AGreenhousePlayerController::StopSprint);
 }
 
 void AGreenhousePlayerController::ToggleInventory()
@@ -295,4 +335,38 @@ void AGreenhousePlayerController::SelectHotbarSlotFour()
 void AGreenhousePlayerController::SelectHotbarSlotFive()
 {
 	SelectHotbarSlot(4);
+}
+
+void AGreenhousePlayerController::StartSprint()
+{
+	bIsSprinting = true;
+	ApplySprintSpeed();
+}
+
+void AGreenhousePlayerController::StopSprint()
+{
+	bIsSprinting = false;
+	ApplySprintSpeed();
+}
+
+void AGreenhousePlayerController::ApplySprintSpeed()
+{
+	ACharacter* ControlledCharacter = Cast<ACharacter>(GetPawn());
+	if (!ControlledCharacter)
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* MovementComponent = ControlledCharacter->GetCharacterMovement();
+	if (!MovementComponent)
+	{
+		return;
+	}
+
+	if (DefaultWalkSpeed <= 0.0f)
+	{
+		DefaultWalkSpeed = MovementComponent->MaxWalkSpeed;
+	}
+
+	MovementComponent->MaxWalkSpeed = bIsSprinting ? DefaultWalkSpeed * SprintSpeedMultiplier : DefaultWalkSpeed;
 }

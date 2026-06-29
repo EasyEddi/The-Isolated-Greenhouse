@@ -1,12 +1,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/Widget.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
 #include "GreenhouseInventoryWidget.generated.h"
 
 class UBorder;
+class UCanvasPanel;
 class UHorizontalBox;
+class UOverlay;
+class USizeBox;
 class UTextBlock;
 class UVerticalBox;
 
@@ -16,6 +20,20 @@ enum class EGreenhouseInventoryItem : uint8
 	None,
 	Lily,
 	WateringCan
+};
+
+UCLASS()
+class THEISOLATEDGREENHOUSE_API UGreenhouseItemIconWidget : public UWidget
+{
+	GENERATED_BODY()
+
+public:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
+	void SetItem(EGreenhouseInventoryItem InItem);
+
+private:
+	EGreenhouseInventoryItem Item = EGreenhouseInventoryItem::None;
+	TSharedPtr<class SGreenhouseItemIcon> SlateIcon;
 };
 
 UCLASS()
@@ -62,13 +80,31 @@ private:
 	static constexpr int32 TotalSlotCount = HotbarSlotCount + InventoryColumnCount * InventoryRowCount;
 
 	UPROPERTY()
+	TObjectPtr<UCanvasPanel> RootCanvas;
+
+	UPROPERTY()
 	TObjectPtr<UVerticalBox> InventoryPanel;
 
 	UPROPERTY()
-	TObjectPtr<UTextBlock> HeldItemText;
+	TObjectPtr<UBorder> InventoryFrame;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UTextBlock>> SlotTexts;
+	TObjectPtr<UBorder> DebugFrame;
+
+	UPROPERTY()
+	TObjectPtr<USizeBox> CursorPreview;
+
+	UPROPERTY()
+	TObjectPtr<UGreenhouseItemIconWidget> CursorIcon;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> CursorStackText;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UGreenhouseItemIconWidget>> SlotIcons;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UTextBlock>> SlotStackTexts;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UBorder>> SlotBackgrounds;
@@ -87,10 +123,17 @@ private:
 
 	void BuildInterface();
 	UGreenhouseInventorySlotButton* CreateSlotButton(int32 SlotIndex, const FVector2D& Size);
+	USizeBox* CreateSlotFrame(int32 SlotIndex, const FVector2D& Size);
+	UTextBlock* CreateLabel(const FText& Text, const FLinearColor& Color, int32 FontSize, ETextJustify::Type Justification = ETextJustify::Center);
+	UButton* CreateDebugButton(const FName Name, const FText& Label, UVerticalBox* ParentPanel);
 	bool HasItem(EGreenhouseInventoryItem Item) const;
 	void RefreshSlots();
-	FText GetItemText(EGreenhouseInventoryItem Item, int32 StackCount = 1) const;
+	void RefreshCursorPreview();
+	FText GetStackText(EGreenhouseInventoryItem Item, int32 StackCount) const;
 	FLinearColor GetSlotColor(int32 SlotIndex) const;
+	FLinearColor GetSlotInnerColor(int32 SlotIndex) const;
+
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UFUNCTION()
 	void GiveLily();

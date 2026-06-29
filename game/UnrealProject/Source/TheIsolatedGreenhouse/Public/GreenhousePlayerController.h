@@ -24,6 +24,8 @@ public:
 	virtual void SetupInputComponent() override;
 
 private:
+	static constexpr float SprintSpeedMultiplier = 1.5f;
+
 	UPROPERTY()
 	TObjectPtr<UGreenhouseInventoryWidget> InventoryWidget;
 
@@ -37,6 +39,8 @@ private:
 	TObjectPtr<AGreenhouseHeldItemActor> HeldItemActor;
 
 	EGreenhouseInventoryItem LastDisplayedHeldItem = EGreenhouseInventoryItem::None;
+	float DefaultWalkSpeed = 0.0f;
+	bool bIsSprinting = false;
 
 	void ToggleInventory();
 	void HandleInteractOrInventory();
@@ -44,6 +48,7 @@ private:
 	void ApplyInventoryInputMode(bool bInventoryOpen);
 	void RegisterInputMappingContexts();
 	void ApplyInitialSpawnView();
+	void ConfigurePlayerCollision();
 	void SpawnHeldItemActor();
 	USceneComponent* FindFirstPersonCameraComponent() const;
 	void UpdateHeldItemActor();
@@ -53,4 +58,7 @@ private:
 	void SelectHotbarSlotThree();
 	void SelectHotbarSlotFour();
 	void SelectHotbarSlotFive();
+	void StartSprint();
+	void StopSprint();
+	void ApplySprintSpeed();
 };
