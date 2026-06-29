@@ -2,41 +2,67 @@
 
 ## Version
 
-Use Unreal Engine 5.8 for this project.
+Verwendet Unreal Engine 5.8. Beide Teammitglieder sollten dieselbe Engine-Version nutzen.
 
-Both team members should use the same engine version. Do not mix 5.6, 5.7, 5.8, and preview versions.
+## Projekt oeffnen
 
-## Git LFS
-
-Git LFS is needed because Unreal assets like `.uasset` and `.umap` are binary files. Normal Git can store them, but the repository becomes slow and hard to work with. LFS keeps those files managed separately.
-
-Install Git LFS before adding real Unreal assets:
+1. Repo klonen oder pullen.
+2. Git LFS installieren und aktivieren:
 
 ```bash
 git lfs install
+git lfs pull
 ```
 
-The repository already contains `.gitattributes` rules for common Unreal asset files.
+3. Projektdatei oeffnen:
 
-## First Unreal Steps
+```text
+game/UnrealProject/TheIsolatedGreenhouse.uproject
+```
 
-1. Install Unreal Engine 5.8.
-2. Open `game/UnrealProject/TheIsolatedGreenhouse.uproject`.
-3. Let Unreal generate any missing project files if it asks.
-4. Create a first empty level named `L_Greenhouse_MVP` inside `Content/Maps`.
-5. Save the level.
-6. Commit the new Unreal files on branch `eddi/unreal-project-setup`.
-7. Open a pull request and let Tarek review it.
+4. Wenn Unreal fragt, Projektdateien/Module neu zu bauen, bestaetigen.
+5. Die Standard-Map ist:
 
-## Agent Rule
+```text
+Content/Maps/L_Greenhouse_MVP
+```
 
-When using an agent inside Unreal, keep tasks small. Ask for one system at a time:
+## C++ Build
 
-- project setup
-- first map
-- interaction system
-- Monstera plant actor
-- computer/order UI
-- money/shop system
+Wenn C++ geaendert wurde, den Editor-Build ausfuehren:
 
-Do not ask an agent to build the whole game in one prompt.
+```bash
+'/Users/Shared/Epic Games/UE_5.8/Engine/Build/BatchFiles/Mac/Build.sh' TheIsolatedGreenhouseEditor Mac Development -Project='/Users/eddi/The-Isolated-Greenhouse/game/UnrealProject/TheIsolatedGreenhouse.uproject' -WaitMutex
+```
+
+Auf Windows wird derselbe Build ueber die Unreal-/Visual-Studio-Toolchain ausgefuehrt. Wichtig ist, dass `TheIsolatedGreenhouseEditor` erfolgreich baut.
+
+## Git LFS
+
+Unreal-Assets sind binaer. Diese Dateitypen muessen ueber Git LFS laufen:
+
+- `.uasset`
+- `.umap`
+- grosse `.fbx`/Model-Dateien
+
+Nach einem Pull auf einem neuen Rechner immer ausfuehren:
+
+```bash
+git lfs pull
+```
+
+## Wichtige Pfade
+
+- Projekt: `game/UnrealProject/TheIsolatedGreenhouse.uproject`
+- Map: `game/UnrealProject/Content/Maps/L_Greenhouse_MVP.umap`
+- C++ Code: `game/UnrealProject/Source/TheIsolatedGreenhouse`
+- importierte Unreal-Modelle: `game/UnrealProject/Content/models`
+- rohe/source Modelle: `game/UnrealProject/models`
+- Documentation: `Documentation`
+
+## Vorsicht bei Map- und Asset-Dateien
+
+- `.umap` und `.uasset` lassen sich schlecht mergen.
+- Immer `git status` pruefen, bevor Map/Asset-Dateien gespeichert oder generiert werden.
+- Wenn jemand die Map im Editor geaendert hat, keine Generator-Scripts drueberlaufen lassen, ohne vorher abzusprechen.
+- `item list.md` ist manuell gepflegt und soll nicht automatisch veraendert werden.

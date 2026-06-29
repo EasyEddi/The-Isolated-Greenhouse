@@ -2,65 +2,62 @@
 
 ## Branches
 
-Work on separate branches. Do not commit directly to `main`.
+Aktuelle Entwicklungsarbeit laeuft auf:
 
-Suggested branch names:
+```text
+eddis-beta-stuff
+```
 
-- `eddi/greenhouse-scene`
-- `eddi/plant-care`
-- `tarek/order-ui`
-- `tarek/shop-progression`
+`main` soll nur aktualisiert werden, wenn das explizit gesagt wird oder ein getesteter Stand gemerged werden soll.
 
-## Pull Request Rule
+## Grundregel
 
-Every finished task should become a pull request.
+Nicht zwei Personen oder Agenten gleichzeitig dieselbe `.umap` oder dieselben `.uasset` Dateien bearbeiten lassen. Unreal-Dateien sind binaer und erzeugen schnell Konflikte.
 
-Before merging:
+## Vor jeder Aufgabe
 
-1. The app should still run.
-2. The other teammate should review the pull request.
-3. Any obvious bug should be fixed before merge.
+1. `git status` pruefen.
+2. Klaeren, ob offene Aenderungen von jemand anderem sind.
+3. Nur die Dateien anfassen, die zur Aufgabe gehoeren.
+4. Bei Map-/Asset-Aenderungen besonders vorsichtig sein.
 
-## Daily Standup
+## Agent-Sessions
 
-Each morning, answer three questions:
+Wenn mehrere Codex/cmux-Sessions laufen, sollte jede Session eine klare Verantwortung haben:
 
-1. What did I do yesterday?
-2. What will I do today?
-3. Where am I stuck?
+- `map-layout`: Map, Wande, Boden, Licht, Spawnpoint.
+- `inventory-items`: Inventar, Hotbar, Item-Handling.
+- `models-assets`: Importierte Models, Materialien, Scale/Rotation.
+- `gameplay-loop`: Planting, Wachstum, Interaktion.
+- `git-sync`: Status, Commit, Push, Merge.
 
-## Monday Checklist
+Eine Session darf nicht spontan Aufgaben einer anderen Session uebernehmen.
 
-- Agree on this project idea.
-- Confirm the MVP scope.
-- Create GitHub Issues.
-- Set up the app skeleton.
-- Deploy the empty app to Vercel.
-- Practice the pull request flow once.
+## Commit-Regeln
 
-## Tuesday Checklist
+- Kleine, beschreibende Commits.
+- Keine zufaelligen Unreal-Speicherungen mitcommiten, wenn sie nicht zur Aufgabe gehoeren.
+- Wenn lokale User-Aenderungen existieren, nicht resetten oder ueberschreiben.
+- Vor Push kurz `git status` und `git log -1 --oneline` pruefen.
 
-- Eddi starts plant interaction.
-- Tarek starts order/computer UI.
-- Open first real pull requests.
-- Review each other's pull request.
+## Merge-Regeln
 
-## Wednesday Checklist
+- Erst Branch pushen.
+- Danach `main` nur aktualisieren, wenn es explizit gewuenscht ist.
+- Wenn `main` auf denselben Stand gebracht werden soll:
 
-- Add second feature round.
-- Connect plant state with order completion.
-- Decide whether local storage is needed.
+```bash
+git push origin eddis-beta-stuff:main
+```
 
-## Thursday Checklist
+Das ist nur dann sinnvoll, wenn der Branch der gewollte aktuelle Hauptstand ist.
 
-- Merge the main gameplay loop.
-- Deploy the playable build.
-- Play through from first order to last MVP order.
+## Reviews und Tests
 
-## Friday Checklist
+Vor einem wichtigen Merge pruefen:
 
-- Demo the MVP.
-- Test each other's work.
-- Write bugs as GitHub Issues.
-- Sort next week's backlog.
-- Add the week 2 internship report section.
+- Projekt oeffnet im Unreal Editor.
+- Standard-Map ist `L_Greenhouse_MVP`.
+- Spieler kann laufen und sich umsehen.
+- Inventar/Hotbar laedt.
+- Git LFS Assets sind vorhanden.

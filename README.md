@@ -6,16 +6,16 @@ The player lives and works alone in a warm, quiet, slightly overgrown indoor gre
 
 ## MVP Goal
 
-For the first version, the game should run in the browser and show the main loop in a simple but playable way:
+For the first version, the game should run locally in Unreal Engine 5.8 and show the main loop in a simple but playable way:
 
-1. View the greenhouse.
-2. See the current customer order.
-3. Grow or care for a plant.
-4. Cut and package an offshoot.
-5. Complete the order.
-6. Unlock the next order.
+1. Walk through `L_Greenhouse_MVP` in first person.
+2. Use the hotbar/inventory.
+3. Receive a Lily through the debug UI.
+4. Plant the Lily at the greenhouse planting spot.
+5. See the plant grow over time.
+6. Extend the loop later with watering, orders, money, and shop systems.
 
-The MVP should stay small. It does not need a huge 3D world, many plant species, login, or a database at the beginning.
+The MVP should stay small. It does not need many plant species, login, multiplayer, or a complex save system at the beginning.
 
 ## Team
 
@@ -28,4 +28,5 @@ The MVP should stay small. It does not need a huge 3D world, many plant species,
 - [Unreal Startplan](Documentation/STARTPLAN-UNREAL.md)
 - [Product Brief](Documentation/PRODUCT-BRIEF.md)
 - [Team Workflow](Documentation/TEAM-WORKFLOW.md)
+- [Agent Rules](Documentation/AGENT-RULES.md)
 - [Original Assignment](Documentation/AUFGABE-WOCHE-2.md)

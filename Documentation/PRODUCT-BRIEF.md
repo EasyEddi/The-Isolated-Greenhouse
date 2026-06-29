@@ -1,102 +1,108 @@
 # Product Brief
 
 ## Projektname
+
 Isolated Greenhouse
 
 ## Kurzbeschreibung
-Isolated Greenhouse (TIG) ist ein PC Game, das vorraussichtlich über UnrealEngine laufen wird. In dem Spiel geht es darum, einen Online Shop für Pflanzen zu verwalten. Man kriegt immer neue Bestellungen von seinen Kunden rein, welche man dann bearbeiten muss. Man verkauft Pflanzen Ableger und später auch gesamte Pflanzen, dabei muss man auf bestimmte Vorraussetzungen achten. Jede Pflanze braucht eine gewisse Art von Dünger, jede Pflanze braucht einen bestimmten Topf, unterschiedliche Mengen an Wasser, usw. Equipment für sein die Pflanzen Zucht kann der Spieler Online bestellen. Es findet in einer abgelegenen Halle statt. In dieser Halle gibt es nur ein Gewächshaus, den Schreibtisch, auf dem ein PC für den Online shop steht und der Wohnraum des Spielers. Der Spieler ist dabei zu 100% von der Außenwelt abgeschottet und sieht nur ab und zu das Tageslicht. Werkzeuge kommen dann per Liefer Drone durch eine Luke an der Decke der Halle herein geflogen, das ist der einzige Moment im Spiel, wo der Spielertageslich erblickt.
 
-## Fuer wen ist das Spiel?
-Für jeden, der gerne Computerspiele spielt und Pflanzen mag.
+Isolated Greenhouse ist ein ruhiges First-Person-Spiel in Unreal Engine. Der Spieler lebt und arbeitet in einer abgeschotteten Halle mit Gewaechshausbereich, Arbeitsplatz, Lagerbereich und kleinem Wohnbereich. Er zieht Pflanzen, pflegt sie, verarbeitet Ableger und erfuellt spaeter Bestellungen ueber einen Computer.
 
-## Warum ist die Idee interessant?
-Die Idee ist interessant, weil es mal eine andere Art von Spiel ist, was es sonst noch nicht gibt.
+Das Spiel soll friedlich, isoliert und leicht melancholisch wirken, aber nicht nach Horror oder Survival.
+
+## Zielgruppe
+
+Spieler, die ruhige Management-, Farming- oder Cozy-Games moegen und Interesse an Pflanzen haben.
+
+## Warum die Idee funktioniert
+
+Das Spiel kombiniert Pflanzenpflege, kleine Arbeitsablaeufe und eine ungewoehnliche isolierte Halle. Der Reiz liegt nicht in Stress, Kampf oder Horror, sondern in Fortschritt, Ordnung, Wachstum und dem Ausbau des Gewaechshausbereichs.
 
 ## Spielziel
-So viele Pflanzen (und auch Mutationen) sammeln und verkaufen wie möglich
 
-## Wichtigste Funktionen
+Der Spieler baut nach und nach eine groessere Pflanzenzucht auf, verkauft Ableger oder Pflanzen und schaltet bessere Ausstattung frei.
 
-- realistisches Pflanzenwachstum
-- Bestellmechanismen (Werkzeuge etc.)
-- Progressionsystem
-
-## MVP: Was muss in der ersten Version funktionieren?
-
-- Pflanzenwachstum
-- Pflanzenpflege
-- Ableger abschneiden
-
-## Was lassen wir erstmal weg?
-
-- Mutationen
-- Multiplayer
-
-## Technik
+## Aktueller technischer Stand
 
 - Engine: Unreal Engine 5.8
-- Projektart: Unreal First-Person Game mit C++-Grundsystemen und Blueprint-Gameplay
-- Plattform: PC / Mac, lokal spielbar im Unreal Editor
+- Projekt: `game/UnrealProject/TheIsolatedGreenhouse.uproject`
+- Standard-Map: `L_Greenhouse_MVP`
+- Projektart: First-Person Unreal-Projekt mit C++-Grundsystemen und Unreal-Assets
+- Branch fuer laufende Arbeit: `eddis-beta-stuff`
 
-## Aufgaben-Aufteilung
+## Aktueller Gameplay-Stand
+
+- First-Person-Bewegung funktioniert.
+- Spawnpoint und Map-Grundform existieren.
+- Inventar mit 5 Hotbar-Slots und 3x9 Inventar-Slots existiert.
+- Debug-Buttons koennen Lily und Watering Can geben.
+- Lily stackt bis 10 pro Slot.
+- Watering Can ist einzigartig.
+- Lily kann am Planting Plot gepflanzt werden.
+- Gepflanzte Lily waechst ueber Zeit sichtbar.
+
+## MVP
+
+### Muss funktionieren
+
+- Spieler kann die Map im Editor starten.
+- Spieler kann laufen, sich umsehen und die Hotbar nutzen.
+- Spieler kann Lily ins Inventar bekommen.
+- Spieler kann Lily an einem markierten Platz pflanzen.
+- Lily-Wachstum ist sichtbar.
+- Die Map hat eine klare Raumaufteilung nach dem Grundriss.
+
+### Danach
+
+- Watering Can als Pflege-Interaktion verwenden.
+- Computer/Order-System anschliessen.
+- Einfache Bestellung abschliessen.
+- Geld/Shop erst einbauen, wenn Planting und Order-Loop stabil sind.
+
+### Nicht Teil des ersten MVP
+
+- Mutationen.
+- Multiplayer.
+- komplexes Speichern.
+- viele Pflanzenarten.
+- komplette Wirtschaftssimulation.
+
+## Raumaufteilung
+
+- Wohnbereich: Bett, Kueche, einfache Alltagsobjekte.
+- Arbeitsbereich: Schreibtisch und PC.
+- Gewaechshausbereich: Platz fuer Greenhouse-Modelle und Pflanz-Interaktionen.
+- Storage: Regale, Werkzeug-/Materiallager.
+- Freier Bereich: Platz fuer spaetere Erweiterungen.
+
+Die originale Skizze bleibt Referenz fuer die grobe Aufteilung, aber die Map soll nicht wie farbige Rechtecke aussehen.
+
+## Verantwortlichkeiten
 
 ### Eddi
 
-- [x] Unreal-Projekt-Setup
-- [x] Greenhouse-Map
-- [ ] Licht und Atmosphäre
-- [x] First-Person-Bewegung
-- [ ] Interaktionssystem
-- [ ] erste Pflanzen
-- [ ] Pflanzenzustände
-- [ ] Pflege-Interaktion
-- [ ] Ableger schneiden
-- [ ] Auftragssystem
-- [ ] Shop-UI
-- [ ] Shop-Item, zum Beispiel Dünger
+- Map, Raumaufteilung und statische Umgebung.
+- First-Person-Gefuehl.
+- Inventar/Hotbar-Grundsystem.
+- erste Planting-Interaktion.
+- Unreal-Asset-Integration fuer Map-nahe Modelle.
 
 ### Tarek
 
-- [ ] Computer-Terminal
-- [ ] Order-UI
-- [ ] 3 MVP-Bestellungen
-- [ ] Geldsystem
-- [ ] Packstation / Versandpunkt
-- [ ] Verbindung von Shop und Pflanzenpflege
-- [ ] HUD für Geld, Ableger und aktive Aufgabe
-- [ ] Weitere Bestellungen für Woche 2
-- [ ] Visueller Ausbau des Gewächshauses
-- [ ] Pflanzen, Töpfe, Regale und Werkzeuge platzieren
-- [ ] Optional SaveGame
+- Pflanzeninhalte und Pflanzenlogik, sobald die Grundinteraktion bereit ist.
+- Items/Tools, die nicht nur statische Map-Umgebung sind.
+- spaeter Computer-/Order-/Shop-Flows nach Absprache.
 
 ### Gemeinsam
 
-- [x] Unreal 5.8 installieren
-- [x] Repo klonen und Git LFS prüfen
-- [x] Projekt bei beiden starten
-- [ ] Pull Requests reviewen
-- [ ] Integration testen
-- [ ] Bugs als Issues aufschreiben
-- [ ] Demo vorbereiten
+- Keine parallelen Aenderungen an derselben Map-Datei.
+- Branches sauber halten.
+- Vor groesseren Merges testen, ob das Projekt im Editor startet.
+- Bugs konkret mit Screenshot, erwarteter Position und aktuellem Verhalten beschreiben.
 
-## Erfolgskriterien
+## Design-Regeln
 
-- [x] Der Spieler kann sich in der Map in First-Person bewegen
-- [ ] Der Spieler kann eine Pflanze pflegen, bis sie bereit für Ableger ist
-- [ ] Der Spieler kann Ableger schneiden und damit Bestellungen abschließen
-- [ ] Es gibt mindestens 3 Bestellungen, die nacheinander freigeschaltet werden
-- [ ] Der Spieler bekommt Geld für abgeschlossene Bestellungen
-- [ ] Der Spieler kann im Shop mindestens ein Item kaufen, zum Beispiel Dünger
-- [ ] Die Atmosphaere wirkt ruhig, warm und friedlich, nicht gruselig
-- [ ] Das Projekt lässt sich im Unreal Editor starten und vorführen
-
-### mockups
-<img width="599" height="400" alt="image" src="https://github.com/user-attachments/assets/e151da7d-0958-4fa0-9135-e960d7d23e69" />
-
-- [x] weiß = Halle
-- [x] schwarz = spawnpoint
-- [ ] gelb = Wohnbereich
-- [ ] cyan = Gewächshäuser
-- [ ] rot = Schreibtisch (PC)
-- [ ] braun = Storage für equipment (Dünger, Erde etc.)
-- [ ] orange = erstmal frei
+- Ruhig, warm, verlassen, aber nicht gruselig.
+- Statische Halle zuerst stabil halten, dann Gameplay ausbauen.
+- Keine unnoetigen Props generieren, wenn sie spaeter von Hand/als Model kommen sollen.
+- Map-Generatoren duerfen manuell gesetzte Objekte nicht ueberschreiben.
