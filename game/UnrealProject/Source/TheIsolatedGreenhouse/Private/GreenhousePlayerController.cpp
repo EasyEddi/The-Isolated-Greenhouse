@@ -16,7 +16,46 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+bool IsGardenFaucetMesh(const UStaticMesh* Mesh)
+{
+	if (!Mesh)
+	{
+		return false;
+	}
+
+	const FString MeshPath = Mesh->GetPathName();
+	return MeshPath.Contains(TEXT("Garden_Faucet"), ESearchCase::IgnoreCase)
+		|| MeshPath.Contains(TEXT("garden_faucet"), ESearchCase::IgnoreCase);
+}
+
+FVector GetGardenFaucetOutletLocal()
+{
+	// Keep the front axis centered, then nudge depth so the side view sits under the faucet outlet.
+	return FVector(0.0f, 38.0f, 54.0f);
+}
+
+FVector GetWateringCanFillOpeningActorOffset()
+{
+	const FVector WateringCanMeshLocation(0.0f, 0.0f, -12.0f);
+	const FRotator WateringCanMeshRotation(0.0f, 145.0f, 0.0f);
+	constexpr float WateringCanMeshScale = 0.32f;
+	const FVector FillOpeningLocal = FVector(0.05f, 0.0f, 1.205f) * 100.0f;
+
+	return WateringCanMeshLocation + WateringCanMeshRotation.RotateVector(FillOpeningLocal * WateringCanMeshScale);
+}
+
+float GetFillingCanYawDegrees()
+{
+	// Watering can mesh has a 145 degree relative yaw; 125 flips the visible nozzle to world-left.
+	constexpr float FixedLeftFacingYawDegrees = 125.0f;
+	return FixedLeftFacingYawDegrees;
+}
+}
 
 AGreenhousePlayerController::AGreenhousePlayerController()
 {
@@ -139,13 +178,14 @@ void AGreenhousePlayerController::SetupInputComponent()
 
 	check(InputComponent);
 	InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AGreenhousePlayerController::HandleInteractOrInventory);
+	InputComponent->BindKey(EKeys::F, IE_Pressed, this, &AGreenhousePlayerController::HandleWateringCanFillPressed);
 	InputComponent->BindKey(EKeys::One, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotOne);
 	InputComponent->BindKey(EKeys::Two, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotTwo);
 	InputComponent->BindKey(EKeys::Three, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotThree);
 	InputComponent->BindKey(EKeys::Four, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotFour);
 	InputComponent->BindKey(EKeys::Five, IE_Pressed, this, &AGreenhousePlayerController::SelectHotbarSlotFive);
-	InputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &AGreenhousePlayerController::HandleWateringCanPressed);
-	InputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this, &AGreenhousePlayerController::HandleWateringCanReleased);
+	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &AGreenhousePlayerController::HandleWateringCanPressed);
+	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Released, this, &AGreenhousePlayerController::HandleWateringCanReleased);
 	InputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &AGreenhousePlayerController::StartSprint);
 	InputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &AGreenhousePlayerController::StopSprint);
 	InputComponent->BindKey(EKeys::RightShift, IE_Pressed, this, &AGreenhousePlayerController::StartSprint);
@@ -221,6 +261,33 @@ bool AGreenhousePlayerController::TryPlantSelectedLily()
 	return bPlanted;
 }
 
+void AGreenhousePlayerController::HandleWateringCanFillPressed()
+{
+	if (InventoryWidget && InventoryWidget->IsInventoryOpen())
+	{
+		return;
+	}
+
+	TryStartFillingSelectedWateringCan();
+}
+
+bool AGreenhousePlayerController::TryStartFillingSelectedWateringCan()
+{
+	if (!HasSelectedWateringCan() || bIsFillingWateringCan || WateringCanLiters >= MaxWateringCanLiters - 0.05f)
+	{
+		return false;
+	}
+
+	FHitResult InteractionHit;
+	if (!TraceForInteraction(InteractionHit) || !InteractionHit.bBlockingHit || !IsFaucetHit(InteractionHit))
+	{
+		return false;
+	}
+
+	StartFillingWateringCan(InteractionHit);
+	return true;
+}
+
 void AGreenhousePlayerController::HandleWateringCanPressed()
 {
 	if (InventoryWidget && InventoryWidget->IsInventoryOpen())
@@ -235,12 +302,6 @@ void AGreenhousePlayerController::HandleWateringCanPressed()
 
 	FHitResult InteractionHit;
 	TraceForInteraction(InteractionHit);
-	if (InteractionHit.bBlockingHit && IsFaucetHit(InteractionHit) && WateringCanLiters < MaxWateringCanLiters - 0.05f)
-	{
-		StartFillingWateringCan(InteractionHit);
-		return;
-	}
-
 	StartPouringWater(InteractionHit);
 }
 
@@ -300,6 +361,31 @@ void AGreenhousePlayerController::SpawnFillingWaterStreamActor()
 		return;
 	}
 
+	UMaterialInterface* WaterMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/models/equipment/Watering_Can/Water_In_The_Watering_Can.Water_In_The_Watering_Can"));
+	const auto ConfigureWaterActor = [CylinderMesh, WaterMaterial](AStaticMeshActor* WaterActor)
+	{
+		if (!WaterActor)
+		{
+			return;
+		}
+
+		UStaticMeshComponent* MeshComponent = WaterActor->GetStaticMeshComponent();
+		MeshComponent->SetStaticMesh(CylinderMesh);
+		MeshComponent->SetMobility(EComponentMobility::Movable);
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MeshComponent->SetCastShadow(false);
+		if (WaterMaterial)
+		{
+			MeshComponent->SetMaterial(0, WaterMaterial);
+		}
+		else if (UMaterialInstanceDynamic* DynamicWaterMaterial = MeshComponent->CreateAndSetMaterialInstanceDynamic(0))
+		{
+			DynamicWaterMaterial->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.18f, 0.55f, 1.0f, 0.76f));
+			DynamicWaterMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.18f, 0.55f, 1.0f, 0.76f));
+			DynamicWaterMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.70f);
+		}
+	};
+
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = this;
 	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -309,18 +395,24 @@ void AGreenhousePlayerController::SpawnFillingWaterStreamActor()
 		return;
 	}
 
-	UStaticMeshComponent* MeshComponent = FillingWaterStreamActor->GetStaticMeshComponent();
-	MeshComponent->SetStaticMesh(CylinderMesh);
-	MeshComponent->SetMobility(EComponentMobility::Movable);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	MeshComponent->SetCastShadow(false);
-	if (UMaterialInstanceDynamic* WaterMaterial = MeshComponent->CreateAndSetMaterialInstanceDynamic(0))
-	{
-		WaterMaterial->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.18f, 0.55f, 1.0f, 0.76f));
-		WaterMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.18f, 0.55f, 1.0f, 0.76f));
-		WaterMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.70f);
-	}
+	ConfigureWaterActor(FillingWaterStreamActor);
 	FillingWaterStreamActor->SetActorHiddenInGame(true);
+
+	FillingWaterFlowActors.Reset();
+	constexpr int32 FlowSegmentCount = 4;
+	FillingWaterFlowActors.Reserve(FlowSegmentCount);
+	for (int32 SegmentIndex = 0; SegmentIndex < FlowSegmentCount; ++SegmentIndex)
+	{
+		AStaticMeshActor* FlowActor = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
+		if (!FlowActor)
+		{
+			continue;
+		}
+
+		ConfigureWaterActor(FlowActor);
+		FlowActor->SetActorHiddenInGame(true);
+		FillingWaterFlowActors.Add(FlowActor);
+	}
 }
 
 USceneComponent* AGreenhousePlayerController::FindFirstPersonCameraComponent() const
@@ -354,6 +446,7 @@ void AGreenhousePlayerController::UpdateWateringCanState(float DeltaTime)
 		return;
 	}
 
+	PouringVisualSecondsRemaining = FMath::Max(0.0f, PouringVisualSecondsRemaining - DeltaTime);
 	WateringCanLiters = FMath::Max(0.0f, WateringCanLiters - DeltaTime * WateringLitersPerSecond);
 	if (CurrentWateringPlot.IsValid())
 	{
@@ -361,6 +454,12 @@ void AGreenhousePlayerController::UpdateWateringCanState(float DeltaTime)
 	}
 
 	if (WateringCanLiters <= 0.0f)
+	{
+		PouringVisualSecondsRemaining = 0.0f;
+		bStopPouringWhenVisualEnds = false;
+		StopPouringWater();
+	}
+	else if (bStopPouringWhenVisualEnds && PouringVisualSecondsRemaining <= 0.0f)
 	{
 		StopPouringWater();
 	}
@@ -407,8 +506,7 @@ bool AGreenhousePlayerController::IsFaucetHit(const FHitResult& Hit) const
 		|| ActorName.Contains(TEXT("WaterTap"), ESearchCase::IgnoreCase)
 		|| ActorName.Contains(TEXT("Wasserhahn"), ESearchCase::IgnoreCase)
 		|| ComponentName.Contains(TEXT("Faucet"), ESearchCase::IgnoreCase)
-		|| MeshPath.Contains(TEXT("Garden_Faucet"), ESearchCase::IgnoreCase)
-		|| MeshPath.Contains(TEXT("garden_faucet"), ESearchCase::IgnoreCase)
+		|| IsGardenFaucetMesh(Mesh)
 		|| MeshPath.Contains(TEXT("WaterTap"), ESearchCase::IgnoreCase);
 }
 
@@ -421,11 +519,9 @@ void AGreenhousePlayerController::StartFillingWateringCan(const FHitResult& Fauc
 	WateringCanFillingTransform = BuildFillingCanTransform(FaucetHit);
 
 	const FVector FaucetWaterStart = FindFaucetWaterStart(FaucetHit);
-	FillingWaterEndLocation = FVector(FaucetWaterStart.X, FaucetWaterStart.Y, WateringCanFillingTransform.GetLocation().Z + 38.0f);
-	FillingWaterStartLocation = FVector(
-		FaucetWaterStart.X,
-		FaucetWaterStart.Y,
-		FMath::Max(FaucetWaterStart.Z, FillingWaterEndLocation.Z + 24.0f));
+	const FVector FillOpeningLocation = WateringCanFillingTransform.TransformPosition(GetWateringCanFillOpeningActorOffset());
+	FillingWaterEndLocation = FillOpeningLocation + FVector(0.0f, 0.0f, 4.0f);
+	FillingWaterStartLocation = FaucetWaterStart;
 
 	if (HeldItemActor)
 	{
@@ -456,6 +552,8 @@ void AGreenhousePlayerController::StartPouringWater(const FHitResult& Interactio
 	}
 
 	bIsPouringWater = true;
+	bStopPouringWhenVisualEnds = false;
+	PouringVisualSecondsRemaining = 0.35f;
 	CurrentWateringPlot = FindWateringPlot(InteractionHit);
 	if (CurrentWateringPlot.IsValid())
 	{
@@ -472,7 +570,14 @@ void AGreenhousePlayerController::StartPouringWater(const FHitResult& Interactio
 
 void AGreenhousePlayerController::StopPouringWater()
 {
+	if (bIsPouringWater && PouringVisualSecondsRemaining > 0.0f)
+	{
+		bStopPouringWhenVisualEnds = true;
+		return;
+	}
+
 	bIsPouringWater = false;
+	bStopPouringWhenVisualEnds = false;
 	CurrentWateringPlot.Reset();
 	if (HeldItemActor && !bIsFillingWateringCan)
 	{
@@ -521,21 +626,35 @@ AGreenhousePlantingPlotActor* AGreenhousePlayerController::FindWateringPlot(cons
 FTransform AGreenhousePlayerController::BuildFillingCanTransform(const FHitResult& FaucetHit) const
 {
 	const FVector FaucetWaterStart = FindFaucetWaterStart(FaucetHit);
-	const FVector DesiredCanLocation = FaucetWaterStart + FVector(0.0f, 0.0f, -88.0f);
+	const float Yaw = GetFillingCanYawDegrees();
+	const FVector FillOpeningOffset = FRotator(0.0f, Yaw, 0.0f).RotateVector(GetWateringCanFillOpeningActorOffset());
+	FVector DesiredCanLocation = FaucetWaterStart - FVector(FillOpeningOffset.X, FillOpeningOffset.Y, 0.0f);
+	DesiredCanLocation.Z = FaucetWaterStart.Z - 88.0f;
 	const FVector CanLocation = FindGroundedCanLocation(DesiredCanLocation, FaucetHit);
 
-	const float Yaw = PlayerCameraManager ? PlayerCameraManager->GetCameraRotation().Yaw + 180.0f : 0.0f;
 	return FTransform(FRotator(0.0f, Yaw, 0.0f), CanLocation, FVector(1.0f));
 }
 
 FVector AGreenhousePlayerController::FindFaucetWaterStart(const FHitResult& FaucetHit) const
 {
+	if (const UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(FaucetHit.GetComponent()))
+	{
+		if (IsGardenFaucetMesh(MeshComponent->GetStaticMesh()))
+		{
+			return MeshComponent->GetComponentTransform().TransformPosition(GetGardenFaucetOutletLocal());
+		}
+	}
+
 	FVector WaterStart = FaucetHit.bBlockingHit ? FaucetHit.ImpactPoint : FVector::ZeroVector;
 	if (const UPrimitiveComponent* HitComponent = FaucetHit.GetComponent())
 	{
 		const FBoxSphereBounds Bounds = HitComponent->Bounds;
-		const float LowerFaucetZ = Bounds.Origin.Z - Bounds.BoxExtent.Z + 8.0f;
-		WaterStart.Z = FMath::Min(WaterStart.Z - 6.0f, LowerFaucetZ);
+		const float LowerFaucetZ = Bounds.Origin.Z - Bounds.BoxExtent.Z + 10.0f;
+		WaterStart.Z = FMath::Min(WaterStart.Z - 4.0f, LowerFaucetZ);
+	}
+	else if (FaucetHit.bBlockingHit)
+	{
+		WaterStart.Z -= 4.0f;
 	}
 
 	return WaterStart;
@@ -601,10 +720,34 @@ void AGreenhousePlayerController::UpdateFillingWaterStream()
 
 	const FVector Direction = WaterVector / Length;
 	const FQuat Rotation = FQuat::FindBetweenNormals(FVector::UpVector, Direction);
+	const float TimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	constexpr float StreamWidth = 0.034f;
 	FillingWaterStreamActor->SetActorLocation(Start + WaterVector * 0.5f);
 	FillingWaterStreamActor->SetActorRotation(Rotation);
-	FillingWaterStreamActor->SetActorScale3D(FVector(0.055f, 0.055f, Length / 100.0f));
+	FillingWaterStreamActor->SetActorScale3D(FVector(StreamWidth, StreamWidth, Length / 100.0f));
 	FillingWaterStreamActor->SetActorHiddenInGame(false);
+
+	const float SegmentLength = FMath::Clamp(Length * 0.14f, 9.0f, 22.0f);
+	const float TravelStart = SegmentLength * 0.5f + 2.0f;
+	const float TravelEnd = FMath::Max(TravelStart, Length - SegmentLength * 0.5f - 2.0f);
+	const int32 SegmentCount = FillingWaterFlowActors.Num();
+	for (int32 SegmentIndex = 0; SegmentIndex < SegmentCount; ++SegmentIndex)
+	{
+		AStaticMeshActor* FlowActor = FillingWaterFlowActors[SegmentIndex];
+		if (!FlowActor)
+		{
+			continue;
+		}
+
+		const float PhaseOffset = SegmentCount > 0 ? static_cast<float>(SegmentIndex) / static_cast<float>(SegmentCount) : 0.0f;
+		const float Phase = FMath::Frac(TimeSeconds * 1.65f + PhaseOffset);
+		const float SegmentDistance = FMath::Lerp(TravelStart, TravelEnd, Phase);
+		const float SegmentWidth = StreamWidth * (1.18f + 0.08f * FMath::Sin(TimeSeconds * 9.0f + SegmentIndex));
+		FlowActor->SetActorLocation(Start + Direction * SegmentDistance);
+		FlowActor->SetActorRotation(Rotation);
+		FlowActor->SetActorScale3D(FVector(SegmentWidth, SegmentWidth, SegmentLength / 100.0f));
+		FlowActor->SetActorHiddenInGame(false);
+	}
 }
 
 void AGreenhousePlayerController::HideFillingWaterStream()
@@ -612,6 +755,13 @@ void AGreenhousePlayerController::HideFillingWaterStream()
 	if (FillingWaterStreamActor)
 	{
 		FillingWaterStreamActor->SetActorHiddenInGame(true);
+	}
+	for (AStaticMeshActor* FlowActor : FillingWaterFlowActors)
+	{
+		if (FlowActor)
+		{
+			FlowActor->SetActorHiddenInGame(true);
+		}
 	}
 }
 

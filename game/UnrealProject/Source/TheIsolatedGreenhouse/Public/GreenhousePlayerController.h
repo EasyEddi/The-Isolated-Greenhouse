@@ -47,11 +47,15 @@ private:
 	UPROPERTY()
 	TObjectPtr<AStaticMeshActor> FillingWaterStreamActor;
 
+	UPROPERTY()
+	TArray<TObjectPtr<AStaticMeshActor>> FillingWaterFlowActors;
+
 	EGreenhouseInventoryItem LastDisplayedHeldItem = EGreenhouseInventoryItem::None;
 	float DefaultWalkSpeed = 0.0f;
 	float WateringCanLiters = 0.0f;
 	float WateringCanFillSeconds = 0.0f;
 	float WateringCanFillStartLiters = 0.0f;
+	float PouringVisualSecondsRemaining = 0.0f;
 	FTransform WateringCanFillingTransform = FTransform::Identity;
 	FVector FillingWaterStartLocation = FVector::ZeroVector;
 	FVector FillingWaterEndLocation = FVector::ZeroVector;
@@ -59,10 +63,13 @@ private:
 	bool bIsSprinting = false;
 	bool bIsFillingWateringCan = false;
 	bool bIsPouringWater = false;
+	bool bStopPouringWhenVisualEnds = false;
 
 	void ToggleInventory();
 	void HandleInteractOrInventory();
 	bool TryPlantSelectedLily();
+	void HandleWateringCanFillPressed();
+	bool TryStartFillingSelectedWateringCan();
 	void HandleWateringCanPressed();
 	void HandleWateringCanReleased();
 	void ApplyInventoryInputMode(bool bInventoryOpen);

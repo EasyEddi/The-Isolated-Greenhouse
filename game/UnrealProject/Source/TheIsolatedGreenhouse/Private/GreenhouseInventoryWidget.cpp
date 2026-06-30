@@ -292,6 +292,20 @@ void UGreenhouseInventoryWidget::BuildInterface()
 	RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("InventoryRoot"));
 	WidgetTree->RootWidget = RootCanvas;
 
+	CrosshairDot = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("CrosshairDot"));
+	CrosshairDot->SetWidthOverride(5.0f);
+	CrosshairDot->SetHeightOverride(5.0f);
+	CrosshairDot->SetVisibility(ESlateVisibility::HitTestInvisible);
+	UBorder* CrosshairFill = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CrosshairFill"));
+	CrosshairFill->SetBrushColor(FLinearColor(0.90f, 0.98f, 0.88f, 0.86f));
+	CrosshairDot->AddChild(CrosshairFill);
+	UCanvasPanelSlot* CrosshairSlot = RootCanvas->AddChildToCanvas(CrosshairDot);
+	CrosshairSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+	CrosshairSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+	CrosshairSlot->SetPosition(FVector2D(0.0f, 0.0f));
+	CrosshairSlot->SetAutoSize(true);
+	CrosshairSlot->SetZOrder(50);
+
 	UHorizontalBox* Hotbar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Hotbar"));
 	UCanvasPanelSlot* HotbarCanvasSlot = RootCanvas->AddChildToCanvas(Hotbar);
 	HotbarCanvasSlot->SetAnchors(FAnchors(0.5f, 1.0f));

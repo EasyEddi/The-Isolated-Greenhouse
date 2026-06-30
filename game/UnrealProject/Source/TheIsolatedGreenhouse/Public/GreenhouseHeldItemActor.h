@@ -22,6 +22,8 @@ class THEISOLATEDGREENHOUSE_API AGreenhouseHeldItemActor : public AActor
 public:
 	AGreenhouseHeldItemActor();
 
+	virtual void Tick(float DeltaSeconds) override;
+
 	void SetHeldItem(EGreenhouseInventoryItem Item);
 	void SetWaterEffect(EGreenhouseHeldWaterEffect Effect);
 
@@ -47,6 +49,13 @@ private:
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> WaterStreamMeshComponent;
 
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMeshComponent>> WaterSprayComponents;
+
 	EGreenhouseInventoryItem CurrentItem = EGreenhouseInventoryItem::None;
 	EGreenhouseHeldWaterEffect CurrentWaterEffect = EGreenhouseHeldWaterEffect::None;
+	float WaterVisualTime = 0.0f;
+
+	void SetWaterSprayVisible(bool bVisible);
+	void UpdateWaterSpray();
 };

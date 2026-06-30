@@ -3,6 +3,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -15,6 +16,43 @@ UStaticMesh* LoadFirstAvailableMesh(const TCHAR* PrimaryPath, const TCHAR* Fallb
 	}
 
 	return FallbackPath ? LoadObject<UStaticMesh>(nullptr, FallbackPath) : nullptr;
+}
+
+UMaterialInterface* LoadWaterMaterial()
+{
+	return LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/models/equipment/Watering_Can/Water_In_The_Watering_Can.Water_In_The_Watering_Can"));
+}
+
+void ApplyWaterMaterial(UStaticMeshComponent* MeshComponent, UMaterialInterface* WaterMaterial)
+{
+	if (!MeshComponent)
+	{
+		return;
+	}
+
+	if (WaterMaterial)
+	{
+		MeshComponent->SetMaterial(0, WaterMaterial);
+		return;
+	}
+
+	if (UMaterialInstanceDynamic* DynamicMaterial = MeshComponent->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		DynamicMaterial->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.18f, 0.58f, 1.0f, 0.82f));
+		DynamicMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.18f, 0.58f, 1.0f, 0.82f));
+		DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.74f);
+	}
+}
+
+FVector GetWateringCanNozzleOutletLocal()
+{
+	// Matches the black shower-head material bounds in watering_can.fbx.
+	return FVector(-1.98f, 0.0f, 1.315f) * 100.0f;
+}
+
+FVector GetWateringCanSprayDirectionLocal()
+{
+	return FVector(-1.0f, 0.0f, 0.0f).GetSafeNormal();
 }
 
 void ConfigureHeldMesh(UStaticMeshComponent* MeshComponent, UStaticMesh* Mesh, const FVector& Location, const FRotator& Rotation, float Scale)
@@ -35,7 +73,7 @@ void ConfigureHeldMesh(UStaticMeshComponent* MeshComponent, UStaticMesh* Mesh, c
 
 AGreenhouseHeldItemActor::AGreenhouseHeldItemActor()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
@@ -53,6 +91,8 @@ AGreenhouseHeldItemActor::AGreenhouseHeldItemActor()
 	UStaticMesh* FertilizerBagMesh = LoadFirstAvailableMesh(
 		TEXT("/Game/models/equipment/fertilizer/ornament_plants/ornament_plants_fertilizer.ornament_plants_fertilizer"));
 	UStaticMesh* CylinderMesh = LoadFirstAvailableMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	UStaticMesh* DropletMesh = LoadFirstAvailableMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	UMaterialInterface* WaterMaterial = LoadWaterMaterial();
 
 	LilyMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LilyMesh"));
 	LilyMeshComponent->SetupAttachment(SceneRoot);
@@ -75,20 +115,42 @@ AGreenhouseHeldItemActor::AGreenhouseHeldItemActor()
 	ConfigureHeldMesh(FertilizerBagMeshComponent, FertilizerBagMesh, FVector(0.0f, 0.0f, -14.0f), FRotator(0.0f, 148.0f, 0.0f), 0.25f);
 
 	WaterStreamMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WaterStreamMesh"));
-	WaterStreamMeshComponent->SetupAttachment(SceneRoot);
+	WaterStreamMeshComponent->SetupAttachment(WateringCanMeshComponent);
 	WaterStreamMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WaterStreamMeshComponent->SetCastShadow(false);
 	WaterStreamMeshComponent->SetStaticMesh(CylinderMesh);
 	WaterStreamMeshComponent->SetRelativeScale3D(FVector(0.018f, 0.018f, 0.62f));
 	WaterStreamMeshComponent->SetVisibility(false, true);
-	if (UMaterialInstanceDynamic* WaterMaterial = WaterStreamMeshComponent->CreateAndSetMaterialInstanceDynamic(0))
+	ApplyWaterMaterial(WaterStreamMeshComponent, WaterMaterial);
+
+	constexpr int32 SprayDropCount = 96;
+	WaterSprayComponents.Reserve(SprayDropCount);
+	for (int32 DropIndex = 0; DropIndex < SprayDropCount; ++DropIndex)
 	{
-		WaterMaterial->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.20f, 0.58f, 1.0f, 0.78f));
-		WaterMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.20f, 0.58f, 1.0f, 0.78f));
-		WaterMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.68f);
+		const FName ComponentName(*FString::Printf(TEXT("WaterSprayDrop_%02d"), DropIndex));
+		UStaticMeshComponent* SprayDrop = CreateDefaultSubobject<UStaticMeshComponent>(ComponentName);
+		SprayDrop->SetupAttachment(WateringCanMeshComponent);
+		SprayDrop->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		SprayDrop->SetCastShadow(false);
+		SprayDrop->SetStaticMesh(DropletMesh ? DropletMesh : CylinderMesh);
+		SprayDrop->SetVisibility(false, true);
+		ApplyWaterMaterial(SprayDrop, WaterMaterial);
+		WaterSprayComponents.Add(SprayDrop);
 	}
 
 	SetHeldItem(EGreenhouseInventoryItem::None);
+	SetActorTickEnabled(false);
+}
+
+void AGreenhouseHeldItemActor::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	WaterVisualTime += DeltaSeconds;
+	if (CurrentItem == EGreenhouseInventoryItem::WateringCan && CurrentWaterEffect == EGreenhouseHeldWaterEffect::Pouring)
+	{
+		UpdateWaterSpray();
+	}
 }
 
 void AGreenhouseHeldItemActor::SetHeldItem(EGreenhouseInventoryItem Item)
@@ -129,35 +191,91 @@ void AGreenhouseHeldItemActor::SetHeldItem(EGreenhouseInventoryItem Item)
 
 void AGreenhouseHeldItemActor::SetWaterEffect(EGreenhouseHeldWaterEffect Effect)
 {
+	const EGreenhouseHeldWaterEffect PreviousEffect = CurrentWaterEffect;
 	CurrentWaterEffect = Effect;
-	if (!WaterStreamMeshComponent)
+	if (PreviousEffect != CurrentWaterEffect)
 	{
-		return;
+		WaterVisualTime = 0.0f;
 	}
 
 	const bool bShowWater = CurrentItem == EGreenhouseInventoryItem::WateringCan && Effect != EGreenhouseHeldWaterEffect::None;
-	WaterStreamMeshComponent->SetVisibility(bShowWater, true);
-	if (!bShowWater)
+	const bool bShowPouring = bShowWater && Effect == EGreenhouseHeldWaterEffect::Pouring;
+	if (WaterStreamMeshComponent)
+	{
+		WaterStreamMeshComponent->SetVisibility(false, true);
+	}
+
+	SetWaterSprayVisible(bShowPouring);
+	SetActorTickEnabled(bShowPouring);
+	if (bShowPouring)
+	{
+		UpdateWaterSpray();
+	}
+}
+
+void AGreenhouseHeldItemActor::SetWaterSprayVisible(bool bVisible)
+{
+	for (UStaticMeshComponent* SprayDrop : WaterSprayComponents)
+	{
+		if (SprayDrop)
+		{
+			SprayDrop->SetVisibility(bVisible, true);
+		}
+	}
+}
+
+void AGreenhouseHeldItemActor::UpdateWaterSpray()
+{
+	if (!WateringCanMeshComponent)
 	{
 		return;
 	}
 
-	if (Effect == EGreenhouseHeldWaterEffect::Filling)
+	const FTransform MeshTransform = WateringCanMeshComponent->GetComponentTransform();
+	const FVector SprayOrigin = MeshTransform.TransformPosition(GetWateringCanNozzleOutletLocal());
+	const FVector NozzleDirection = MeshTransform.TransformVectorNoScale(GetWateringCanSprayDirectionLocal()).GetSafeNormal();
+	const FVector SprayDirection = (NozzleDirection * 0.82f + FVector::DownVector * 0.34f).GetSafeNormal();
+	FVector SpraySide = FVector::CrossProduct(SprayDirection, FVector::DownVector);
+	if (SpraySide.IsNearlyZero())
 	{
-		WaterStreamMeshComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 78.0f));
-		WaterStreamMeshComponent->SetRelativeRotation(FRotator::ZeroRotator);
-		WaterStreamMeshComponent->SetRelativeScale3D(FVector(0.016f, 0.016f, 0.72f));
+		SpraySide = MeshTransform.TransformVectorNoScale(FVector::UpVector);
 	}
-	else
+	SpraySide.Normalize();
+	FVector SprayUp = FVector::CrossProduct(SpraySide, SprayDirection);
+	if (SprayUp.IsNearlyZero())
 	{
-		const FVector StreamStart(52.0f, -36.0f, 18.0f);
-		const FVector StreamEnd(78.0f, -46.0f, -58.0f);
-		const FVector StreamVector = StreamEnd - StreamStart;
-		const float StreamLength = StreamVector.Size();
-		const FVector StreamDirection = StreamLength > 0.0f ? StreamVector / StreamLength : FVector::DownVector;
+		SprayUp = FVector::UpVector;
+	}
+	SprayUp.Normalize();
 
-		WaterStreamMeshComponent->SetRelativeLocation(StreamStart + StreamVector * 0.5f);
-		WaterStreamMeshComponent->SetRelativeRotation(FQuat::FindBetweenNormals(FVector::UpVector, StreamDirection).Rotator());
-		WaterStreamMeshComponent->SetRelativeScale3D(FVector(0.018f, 0.018f, StreamLength / 100.0f));
+	for (int32 DropIndex = 0; DropIndex < WaterSprayComponents.Num(); ++DropIndex)
+	{
+		UStaticMeshComponent* SprayDrop = WaterSprayComponents[DropIndex];
+		if (!SprayDrop)
+		{
+			continue;
+		}
+
+		const float DropSeed = static_cast<float>(DropIndex);
+		const int32 HoleIndex = DropIndex % 16;
+		const int32 RingIndex = DropIndex / 16;
+		const float HoleAngle = (static_cast<float>(HoleIndex) / 16.0f) * (2.0f * UE_PI) + static_cast<float>(RingIndex) * 0.24f;
+		const float HoleCos = FMath::Cos(HoleAngle);
+		const float HoleSin = FMath::Sin(HoleAngle);
+		const float TravelAlpha = FMath::Frac(WaterVisualTime * (4.4f + static_cast<float>(RingIndex) * 0.13f) + DropSeed * 0.031f);
+		const float ConeSide = 0.20f + static_cast<float>(RingIndex % 6) * 0.045f;
+		const float ConeUp = 0.17f + static_cast<float>((RingIndex + 2) % 6) * 0.038f;
+		const FVector HoleOffset = SpraySide * (HoleCos * 5.8f) + SprayUp * (HoleSin * 5.2f);
+		const FVector DropDirection = (SprayDirection + SpraySide * (HoleCos * ConeSide) + SprayUp * (HoleSin * ConeUp)).GetSafeNormal();
+		const FVector Position = SprayOrigin
+			+ NozzleDirection * 2.5f
+			+ HoleOffset
+			+ DropDirection * (6.0f + TravelAlpha * 132.0f)
+			+ FVector::DownVector * (TravelAlpha * TravelAlpha * 38.0f);
+
+		const float DropScale = 0.021f + 0.012f * (1.0f - TravelAlpha) + 0.003f * FMath::Sin(DropSeed * 2.1f);
+		SprayDrop->SetWorldLocation(Position);
+		SprayDrop->SetWorldRotation(FRotator(0.0f, DropSeed * 31.0f, 0.0f));
+		SprayDrop->SetWorldScale3D(FVector(DropScale, DropScale, DropScale * (1.05f + TravelAlpha * 0.55f)));
 	}
 }

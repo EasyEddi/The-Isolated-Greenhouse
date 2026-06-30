@@ -142,6 +142,9 @@ private:
 	TObjectPtr<UBorder> DebugFrame;
 
 	UPROPERTY()
+	TObjectPtr<USizeBox> CrosshairDot;
+
+	UPROPERTY()
 	TObjectPtr<USizeBox> CursorPreview;
 
 	UPROPERTY()
