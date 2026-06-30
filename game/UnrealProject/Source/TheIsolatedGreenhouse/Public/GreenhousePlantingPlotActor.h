@@ -19,6 +19,8 @@ public:
 
 	bool CanPlantAt(const FVector& PlayerLocation) const;
 	bool PlantLily();
+	bool CanWaterAt(const FVector& PlayerLocation) const;
+	bool WaterPlant(float WaterSeconds);
 
 private:
 	UPROPERTY()
@@ -30,7 +32,11 @@ private:
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> LilyMeshComponent;
 
+	UPROPERTY()
+	TObjectPtr<class UMaterialInstanceDynamic> PlotMaterial;
+
 	float GrowthSeconds = 0.0f;
+	float WetSecondsRemaining = 0.0f;
 	bool bHasLily = false;
 	bool bIsGrowing = false;
 
@@ -38,4 +44,7 @@ private:
 	static constexpr float GrowthDuration = 5.0f;
 	static constexpr float InitialLilyScale = 0.04f;
 	static constexpr float FullLilyScale = 0.45f;
+	static constexpr float WetVisualDuration = 4.0f;
+
+	void UpdatePlotMaterial();
 };
