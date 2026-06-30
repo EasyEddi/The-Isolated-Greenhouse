@@ -419,7 +419,7 @@ void AGreenhousePlayerController::StartFillingWateringCan(const FHitResult& Fauc
 	WateringCanFillSeconds = 0.0f;
 	WateringCanFillStartLiters = WateringCanLiters;
 	WateringCanFillingTransform = BuildFillingCanTransform(FaucetHit);
-	FillingWaterStartLocation = FindFaucetWaterStart(FaucetHit);
+	FillingWaterStartLocation = FindFaucetStreamStart(FaucetHit);
 	FillingWaterEndLocation = WateringCanFillingTransform.GetLocation() + FVector(0.0f, 0.0f, 38.0f);
 
 	if (HeldItemActor)
@@ -532,6 +532,32 @@ FVector AGreenhousePlayerController::FindFaucetWaterStart(const FHitResult& Fauc
 	}
 
 	return WaterStart;
+}
+
+FVector AGreenhousePlayerController::FindFaucetStreamStart(const FHitResult& FaucetHit) const
+{
+	FVector StreamStart = FindFaucetWaterStart(FaucetHit);
+
+	const UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(FaucetHit.GetComponent());
+	const UStaticMesh* FaucetMesh = MeshComponent ? MeshComponent->GetStaticMesh() : nullptr;
+	if (!MeshComponent || !FaucetMesh)
+	{
+		return StreamStart;
+	}
+
+	const FBox LocalBounds = FaucetMesh->GetBoundingBox();
+	const FVector LocalSize = LocalBounds.GetSize();
+	if (LocalSize.IsNearlyZero())
+	{
+		return StreamStart;
+	}
+
+	const FVector LocalOutlet(
+		(LocalBounds.Min.X + LocalBounds.Max.X) * 0.5f,
+		FMath::Lerp(LocalBounds.Min.Y, LocalBounds.Max.Y, 0.09f),
+		FMath::Lerp(LocalBounds.Min.Z, LocalBounds.Max.Z, 0.07f));
+
+	return MeshComponent->GetComponentTransform().TransformPosition(LocalOutlet);
 }
 
 FVector AGreenhousePlayerController::FindGroundedCanLocation(const FVector& DesiredLocation, const FHitResult& FaucetHit) const

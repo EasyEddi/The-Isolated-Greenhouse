@@ -110,8 +110,8 @@ void AGreenhouseHeldItemActor::SetWaterEffect(EGreenhouseHeldWaterEffect Effect)
 	}
 	else
 	{
-		WaterStreamMeshComponent->SetRelativeLocation(FVector(74.0f, -8.0f, -32.0f));
-		WaterStreamMeshComponent->SetRelativeRotation(FRotator(58.0f, -8.0f, 8.0f));
-		WaterStreamMeshComponent->SetRelativeScale3D(FVector(0.010f, 0.010f, 0.38f));
+		WaterStreamMeshComponent->SetRelativeLocation(FVector(78.0f, -18.0f, -40.0f));
+		WaterStreamMeshComponent->SetRelativeRotation(FRotator(64.0f, -14.0f, 10.0f));
+		WaterStreamMeshComponent->SetRelativeScale3D(FVector(0.018f, 0.018f, 0.54f));
 	}
 }

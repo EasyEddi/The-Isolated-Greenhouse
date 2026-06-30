@@ -84,6 +84,7 @@ private:
 	AGreenhousePlantingPlotActor* FindWateringPlot(const FHitResult& InteractionHit) const;
 	FTransform BuildFillingCanTransform(const FHitResult& FaucetHit) const;
 	FVector FindFaucetWaterStart(const FHitResult& FaucetHit) const;
+	FVector FindFaucetStreamStart(const FHitResult& FaucetHit) const;
 	FVector FindGroundedCanLocation(const FVector& DesiredLocation, const FHitResult& FaucetHit) const;
 	void UpdateFillingWaterStream();
 	void HideFillingWaterStream();
