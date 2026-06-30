@@ -27,3 +27,6 @@ PackagedBuilds/
 # Logs and temporary files
 *.log
 *.tmp
+
+# Local visual references
+Documentation/screenshots/

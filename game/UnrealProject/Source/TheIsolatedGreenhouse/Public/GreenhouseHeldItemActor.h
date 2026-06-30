@@ -27,5 +27,14 @@ private:
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> WateringCanMeshComponent;
 
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> EmptyPotMeshComponent;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> SoilBagMeshComponent;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> FertilizerBagMeshComponent;
+
 	EGreenhouseInventoryItem CurrentItem = EGreenhouseInventoryItem::None;
 };

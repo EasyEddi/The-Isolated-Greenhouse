@@ -9,99 +9,227 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/PointLightComponent.h"
+#include "Components/SceneComponent.h"
 #include "Components/SizeBox.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
-#include "Rendering/DrawElements.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/SLeafWidget.h"
+#include "Styling/SlateTypes.h"
 #include "Widgets/SWidget.h"
 
-class SGreenhouseItemIcon : public SLeafWidget
+namespace
 {
-public:
-	SLATE_BEGIN_ARGS(SGreenhouseItemIcon) {}
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs)
+UStaticMesh* LoadFirstAvailableInventoryMesh(const TCHAR* PrimaryPath, const TCHAR* FallbackPath = nullptr)
+{
+	if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, PrimaryPath))
 	{
+		return Mesh;
 	}
 
-	void SetItem(EGreenhouseInventoryItem InItem)
-	{
-		Item = InItem;
-	}
+	return FallbackPath ? LoadObject<UStaticMesh>(nullptr, FallbackPath) : nullptr;
+}
 
-	virtual FVector2D ComputeDesiredSize(float) const override
-	{
-		return FVector2D(48.0f, 48.0f);
-	}
+bool IsStackableInventoryItem(EGreenhouseInventoryItem Item)
+{
+	return Item == EGreenhouseInventoryItem::Lily
+		|| Item == EGreenhouseInventoryItem::EmptyPot
+		|| Item == EGreenhouseInventoryItem::SoilBag
+		|| Item == EGreenhouseInventoryItem::FertilizerBag;
+}
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
+constexpr float InventoryPreviewFillWorldSize = 88.0f;
+const FVector InventoryPreviewCameraLocation(-145.0f, 0.0f, 8.0f);
+
+FRotator GetInventoryPreviewRotation(EGreenhouseInventoryItem Item)
+{
+	switch (Item)
 	{
-		if (Item == EGreenhouseInventoryItem::None)
+	case EGreenhouseInventoryItem::Lily:
+		return FRotator(0.0f, 180.0f, 0.0f);
+	case EGreenhouseInventoryItem::WateringCan:
+		return FRotator(0.0f, 35.0f, 0.0f);
+	case EGreenhouseInventoryItem::EmptyPot:
+		return FRotator(0.0f, 180.0f, 0.0f);
+	case EGreenhouseInventoryItem::SoilBag:
+	case EGreenhouseInventoryItem::FertilizerBag:
+		return FRotator(0.0f, 90.0f, 0.0f);
+	default:
+		return FRotator::ZeroRotator;
+	}
+}
+
+FBox BuildRotatedMeshBox(const FBox& LocalBox, const FRotator& Rotation)
+{
+	FBox RotatedBox(ForceInit);
+	for (int32 X = 0; X < 2; ++X)
+	{
+		for (int32 Y = 0; Y < 2; ++Y)
 		{
-			return LayerId;
+			for (int32 Z = 0; Z < 2; ++Z)
+			{
+				const FVector Corner(
+					X == 0 ? LocalBox.Min.X : LocalBox.Max.X,
+					Y == 0 ? LocalBox.Min.Y : LocalBox.Max.Y,
+					Z == 0 ? LocalBox.Min.Z : LocalBox.Max.Z);
+				RotatedBox += Rotation.RotateVector(Corner);
+			}
 		}
-
-		const FVector2D Size = AllottedGeometry.GetLocalSize();
-		const FSlateBrush* Brush = FCoreStyle::Get().GetBrush("WhiteBrush");
-		const float Unit = FMath::Min(Size.X, Size.Y);
-		const FVector2D Center(Size.X * 0.5f, Size.Y * 0.5f);
-
-		auto DrawBox = [&](const FVector2D Position, const FVector2D BoxSize, const FLinearColor& Color, int32 LayerOffset = 0)
-		{
-			FSlateDrawElement::MakeBox(
-				OutDrawElements,
-				LayerId + LayerOffset,
-				AllottedGeometry.ToPaintGeometry(BoxSize, FSlateLayoutTransform(Position)),
-				Brush,
-				ESlateDrawEffect::None,
-				Color
-			);
-		};
-
-		if (Item == EGreenhouseInventoryItem::Lily)
-		{
-			DrawBox(FVector2D(Center.X - Unit * 0.045f, Unit * 0.30f), FVector2D(Unit * 0.09f, Unit * 0.42f), FLinearColor(0.30f, 0.56f, 0.28f, 1.0f), 1);
-			DrawBox(FVector2D(Center.X - Unit * 0.30f, Unit * 0.26f), FVector2D(Unit * 0.24f, Unit * 0.15f), FLinearColor(0.43f, 0.75f, 0.35f, 1.0f), 2);
-			DrawBox(FVector2D(Center.X + Unit * 0.06f, Unit * 0.22f), FVector2D(Unit * 0.26f, Unit * 0.16f), FLinearColor(0.36f, 0.68f, 0.32f, 1.0f), 2);
-			DrawBox(FVector2D(Center.X - Unit * 0.21f, Unit * 0.04f), FVector2D(Unit * 0.17f, Unit * 0.17f), FLinearColor(0.92f, 0.88f, 0.56f, 1.0f), 3);
-			DrawBox(FVector2D(Center.X - Unit * 0.04f, Unit * 0.00f), FVector2D(Unit * 0.18f, Unit * 0.18f), FLinearColor(0.98f, 0.95f, 0.68f, 1.0f), 3);
-			DrawBox(FVector2D(Center.X + Unit * 0.12f, Unit * 0.05f), FVector2D(Unit * 0.16f, Unit * 0.16f), FLinearColor(0.88f, 0.82f, 0.50f, 1.0f), 3);
-		}
-		else if (Item == EGreenhouseInventoryItem::WateringCan)
-		{
-			DrawBox(FVector2D(Unit * 0.20f, Unit * 0.38f), FVector2D(Unit * 0.46f, Unit * 0.28f), FLinearColor(0.33f, 0.57f, 0.42f, 1.0f), 1);
-			DrawBox(FVector2D(Unit * 0.27f, Unit * 0.29f), FVector2D(Unit * 0.28f, Unit * 0.12f), FLinearColor(0.44f, 0.70f, 0.53f, 1.0f), 2);
-			DrawBox(FVector2D(Unit * 0.59f, Unit * 0.35f), FVector2D(Unit * 0.28f, Unit * 0.08f), FLinearColor(0.40f, 0.66f, 0.48f, 1.0f), 2);
-			DrawBox(FVector2D(Unit * 0.78f, Unit * 0.30f), FVector2D(Unit * 0.09f, Unit * 0.12f), FLinearColor(0.24f, 0.33f, 0.29f, 1.0f), 3);
-			DrawBox(FVector2D(Unit * 0.13f, Unit * 0.34f), FVector2D(Unit * 0.10f, Unit * 0.24f), FLinearColor(0.24f, 0.37f, 0.31f, 1.0f), 2);
-			DrawBox(FVector2D(Unit * 0.26f, Unit * 0.44f), FVector2D(Unit * 0.33f, Unit * 0.08f), FLinearColor(0.61f, 0.82f, 0.66f, 1.0f), 3);
-		}
-
-		return LayerId + 4;
 	}
 
-private:
-	EGreenhouseInventoryItem Item = EGreenhouseInventoryItem::None;
-};
+	return RotatedBox;
+}
+}
+
+AGreenhouseItemPreviewActor::AGreenhouseItemPreviewActor()
+{
+	PrimaryActorTick.bCanEverTick = false;
+
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	SetRootComponent(SceneRoot);
+
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PreviewMesh"));
+	MeshComponent->SetupAttachment(SceneRoot);
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MeshComponent->SetCastShadow(false);
+
+	KeyLightComponent = CreateDefaultSubobject<UPointLightComponent>(TEXT("PreviewKeyLight"));
+	KeyLightComponent->SetupAttachment(SceneRoot);
+	KeyLightComponent->SetRelativeLocation(FVector(-96.0f, -44.0f, 46.0f));
+	KeyLightComponent->SetIntensity(250.0f);
+	KeyLightComponent->SetAttenuationRadius(380.0f);
+	KeyLightComponent->SetCastShadows(false);
+	KeyLightComponent->SetLightColor(FLinearColor(1.0f, 0.96f, 0.88f));
+
+	FillLightComponent = CreateDefaultSubobject<UPointLightComponent>(TEXT("PreviewFillLight"));
+	FillLightComponent->SetupAttachment(SceneRoot);
+	FillLightComponent->SetRelativeLocation(FVector(-92.0f, 58.0f, 18.0f));
+	FillLightComponent->SetIntensity(190.0f);
+	FillLightComponent->SetAttenuationRadius(380.0f);
+	FillLightComponent->SetCastShadows(false);
+	FillLightComponent->SetLightColor(FLinearColor(0.72f, 0.82f, 1.0f));
+
+	LilyMesh = LoadFirstAvailableInventoryMesh(TEXT("/Game/models/Plants/Lily/lily.lily"));
+	WateringCanMesh = LoadFirstAvailableInventoryMesh(
+		TEXT("/Game/models/equipment/Watering_Can/watering_can.watering_can"),
+		TEXT("/Game/models/furniture/Watering_Can/watering_can.watering_can"));
+	EmptyPotMesh = LoadFirstAvailableInventoryMesh(
+		TEXT("/Game/models/equipment/pots/ornament_plants/empty/ornament_plants_pot_empty.ornament_plants_pot_empty"),
+		TEXT("/Game/models/equipment/pots/ornament plants/empty/ornament_plants_pot_empty.ornament_plants_pot_empty"));
+	SoilBagMesh = LoadFirstAvailableInventoryMesh(
+		TEXT("/Game/models/equipment/soil/ornament_plants/ornament_plants_soil.ornament_plants_soil"),
+		TEXT("/Game/models/equipment/soil/ornament plants/ornament_plants_soil.ornament_plants_soil"));
+	FertilizerBagMesh = LoadFirstAvailableInventoryMesh(
+		TEXT("/Game/models/equipment/fertilizer/ornament_plants/ornament_plants_fertilizer.ornament_plants_fertilizer"));
+
+	SetPreviewItem(EGreenhouseInventoryItem::None);
+}
+
+void AGreenhouseItemPreviewActor::SetPreviewItem(EGreenhouseInventoryItem InItem)
+{
+	if (!MeshComponent)
+	{
+		return;
+	}
+
+	UStaticMesh* Mesh = nullptr;
+
+	if (InItem == EGreenhouseInventoryItem::Lily)
+	{
+		Mesh = LilyMesh;
+	}
+	else if (InItem == EGreenhouseInventoryItem::WateringCan)
+	{
+		Mesh = WateringCanMesh;
+	}
+	else if (InItem == EGreenhouseInventoryItem::EmptyPot)
+	{
+		Mesh = EmptyPotMesh;
+	}
+	else if (InItem == EGreenhouseInventoryItem::SoilBag)
+	{
+		Mesh = SoilBagMesh;
+	}
+	else if (InItem == EGreenhouseInventoryItem::FertilizerBag)
+	{
+		Mesh = FertilizerBagMesh;
+	}
+
+	MeshComponent->SetStaticMesh(Mesh);
+	const FRotator PreviewRotation = GetInventoryPreviewRotation(InItem);
+	MeshComponent->SetRelativeRotation(PreviewRotation);
+	MeshComponent->SetRelativeScale3D(FVector::OneVector);
+
+	if (Mesh)
+	{
+		const FBox RotatedBox = BuildRotatedMeshBox(Mesh->GetBoundingBox(), PreviewRotation);
+		const FVector RotatedCenter = RotatedBox.GetCenter();
+		const FVector RotatedExtent = RotatedBox.GetExtent();
+		const float VisibleWidth = static_cast<float>(RotatedExtent.Y * 2.0);
+		const float VisibleHeight = static_cast<float>(RotatedExtent.Z * 2.0);
+		const float VisibleSize = FMath::Max3(VisibleWidth, VisibleHeight, 1.0f);
+		const float PreviewScale = InventoryPreviewFillWorldSize / VisibleSize;
+		MeshComponent->SetRelativeScale3D(FVector(PreviewScale));
+		MeshComponent->SetRelativeLocation(-RotatedCenter * PreviewScale);
+	}
+	else
+	{
+		MeshComponent->SetRelativeLocation(FVector::ZeroVector);
+	}
+
+	SetActorHiddenInGame(InItem == EGreenhouseInventoryItem::None || Mesh == nullptr);
+}
 
 TSharedRef<SWidget> UGreenhouseItemIconWidget::RebuildWidget()
 {
-	SAssignNew(SlateIcon, SGreenhouseItemIcon);
-	SlateIcon->SetItem(Item);
-	return SlateIcon.ToSharedRef();
+	TSharedRef<SWidget> Widget = Super::RebuildWidget();
+	ConfigurePreviewScene();
+	return Widget;
 }
 
 void UGreenhouseItemIconWidget::SetItem(EGreenhouseInventoryItem InItem)
 {
 	Item = InItem;
-	if (SlateIcon.IsValid())
+	ConfigurePreviewScene();
+}
+
+void UGreenhouseItemIconWidget::ConfigurePreviewScene()
+{
+	SetVisibility(Item == EGreenhouseInventoryItem::None ? ESlateVisibility::Hidden : ESlateVisibility::HitTestInvisible);
+	if (!GetViewportWorld())
 	{
-		SlateIcon->SetItem(Item);
-		SlateIcon->Invalidate(EInvalidateWidgetReason::Paint);
+		return;
+	}
+
+	SetBackgroundColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+	SetEnableAdvancedFeatures(false);
+	SetLightIntensity(0.0f);
+	SetSkyIntensity(1.25f);
+	SetViewLocation(InventoryPreviewCameraLocation);
+	SetViewRotation(FRotator(0.0f, 0.0f, 0.0f));
+	SetShowFlag(TEXT("Grid"), false);
+	SetShowFlag(TEXT("Selection"), false);
+	SetShowFlag(TEXT("AntiAliasing"), true);
+	SetShowFlag(TEXT("Lighting"), true);
+	SetShowFlag(TEXT("DirectionalLights"), false);
+	SetShowFlag(TEXT("PointLights"), true);
+	SetShowFlag(TEXT("SkyLighting"), true);
+	SetShowFlag(TEXT("DynamicShadows"), false);
+	SetShowFlag(TEXT("AmbientOcclusion"), false);
+	SetShowFlag(TEXT("PostProcessing"), false);
+	SetShowFlag(TEXT("Atmosphere"), false);
+	SetShowFlag(TEXT("Fog"), false);
+	SetShowFlag(TEXT("MotionBlur"), false);
+
+	if (!PreviewActor)
+	{
+		PreviewActor = Cast<AGreenhouseItemPreviewActor>(Spawn(AGreenhouseItemPreviewActor::StaticClass()));
+	}
+
+	if (PreviewActor)
+	{
+		PreviewActor->SetPreviewItem(Item);
 	}
 }
 
@@ -231,6 +359,15 @@ void UGreenhouseInventoryWidget::BuildInterface()
 	UButton* WateringCanButton = CreateDebugButton(TEXT("GiveWateringCanButton"), FText::FromString(TEXT("Give watering can")), GivePanel);
 	WateringCanButton->OnClicked.AddDynamic(this, &UGreenhouseInventoryWidget::GiveWateringCan);
 
+	UButton* EmptyPotButton = CreateDebugButton(TEXT("GiveEmptyPotButton"), FText::FromString(TEXT("Give empty pot")), GivePanel);
+	EmptyPotButton->OnClicked.AddDynamic(this, &UGreenhouseInventoryWidget::GiveEmptyPot);
+
+	UButton* SoilBagButton = CreateDebugButton(TEXT("GiveSoilBagButton"), FText::FromString(TEXT("Give soil bag")), GivePanel);
+	SoilBagButton->OnClicked.AddDynamic(this, &UGreenhouseInventoryWidget::GiveSoilBag);
+
+	UButton* FertilizerBagButton = CreateDebugButton(TEXT("GiveFertilizerBagButton"), FText::FromString(TEXT("Give fertilizer bag")), GivePanel);
+	FertilizerBagButton->OnClicked.AddDynamic(this, &UGreenhouseInventoryWidget::GiveFertilizerBag);
+
 	CursorPreview = CreateSlotFrame(INDEX_NONE, FVector2D(70.0f, 70.0f));
 	CursorPreview->SetVisibility(ESlateVisibility::HitTestInvisible);
 	CursorPreview->SetRenderOpacity(0.92f);
@@ -244,6 +381,16 @@ UGreenhouseInventorySlotButton* UGreenhouseInventoryWidget::CreateSlotButton(int
 {
 	UGreenhouseInventorySlotButton* Button = WidgetTree->ConstructWidget<UGreenhouseInventorySlotButton>(UGreenhouseInventorySlotButton::StaticClass());
 	Button->Setup(this, SlotIndex);
+	Button->SetBackgroundColor(FLinearColor::Transparent);
+
+	FButtonStyle ButtonStyle = Button->GetStyle();
+	ButtonStyle.SetNormal(FSlateNoResource());
+	ButtonStyle.SetHovered(FSlateNoResource());
+	ButtonStyle.SetPressed(FSlateNoResource());
+	ButtonStyle.SetDisabled(FSlateNoResource());
+	ButtonStyle.NormalPadding = FMargin(0.0f);
+	ButtonStyle.PressedPadding = FMargin(0.0f);
+	Button->SetStyle(ButtonStyle);
 
 	Button->AddChild(CreateSlotFrame(SlotIndex, Size));
 	return Button;
@@ -257,12 +404,12 @@ USizeBox* UGreenhouseInventoryWidget::CreateSlotFrame(int32 SlotIndex, const FVe
 
 	UBorder* Background = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	Background->SetBrushColor(SlotIndex == INDEX_NONE ? FLinearColor(0.10f, 0.13f, 0.10f, 0.88f) : GetSlotColor(SlotIndex));
-	Background->SetPadding(FMargin(5.0f));
+	Background->SetPadding(FMargin(3.0f));
 	SizeBox->AddChild(Background);
 
 	UBorder* Inner = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	Inner->SetBrushColor(SlotIndex == INDEX_NONE ? FLinearColor(0.07f, 0.09f, 0.07f, 0.96f) : GetSlotInnerColor(SlotIndex));
-	Inner->SetPadding(FMargin(3.0f));
+	Inner->SetPadding(FMargin(0.0f));
 	Background->SetContent(Inner);
 
 	UOverlay* Overlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
@@ -272,7 +419,7 @@ USizeBox* UGreenhouseInventoryWidget::CreateSlotFrame(int32 SlotIndex, const FVe
 	UOverlaySlot* IconSlot = Overlay->AddChildToOverlay(Icon);
 	IconSlot->SetHorizontalAlignment(HAlign_Fill);
 	IconSlot->SetVerticalAlignment(VAlign_Fill);
-	IconSlot->SetPadding(FMargin(7.0f));
+	IconSlot->SetPadding(FMargin(0.0f));
 
 	UTextBlock* StackText = CreateLabel(FText::GetEmpty(), FLinearColor(0.94f, 0.93f, 0.82f, 1.0f), 11);
 	UOverlaySlot* StackSlot = Overlay->AddChildToOverlay(StackText);
@@ -415,11 +562,16 @@ void UGreenhouseInventoryWidget::AddItem(EGreenhouseInventoryItem Item)
 		return;
 	}
 
-	if (Item == EGreenhouseInventoryItem::Lily)
+	if (Item == EGreenhouseInventoryItem::None)
+	{
+		return;
+	}
+
+	if (IsStackableInventoryItem(Item))
 	{
 		for (int32 SlotIndex = 0; SlotIndex < Slots.Num(); ++SlotIndex)
 		{
-			if (Slots[SlotIndex] == EGreenhouseInventoryItem::Lily && SlotStacks[SlotIndex] < MaxStackCount)
+			if (Slots[SlotIndex] == Item && SlotStacks[SlotIndex] < MaxStackCount)
 			{
 				++SlotStacks[SlotIndex];
 				RefreshSlots();
@@ -514,12 +666,10 @@ FLinearColor UGreenhouseInventoryWidget::GetSlotColor(int32 SlotIndex) const
 	const bool bHotbarSlot = SlotIndex < HotbarSlotCount;
 	if (bHotbarSlot && SlotIndex == SelectedHotbarSlot)
 	{
-		return FLinearColor(0.55f, 0.59f, 0.45f, 0.98f);
+		return FLinearColor(0.62f, 0.64f, 0.62f, 1.0f);
 	}
 
-	return bHotbarSlot
-		? FLinearColor(0.11f, 0.13f, 0.10f, 0.94f)
-		: FLinearColor(0.09f, 0.11f, 0.09f, 0.96f);
+	return FLinearColor(0.42f, 0.44f, 0.42f, 1.0f);
 }
 
 FLinearColor UGreenhouseInventoryWidget::GetSlotInnerColor(int32 SlotIndex) const
@@ -527,10 +677,10 @@ FLinearColor UGreenhouseInventoryWidget::GetSlotInnerColor(int32 SlotIndex) cons
 	const bool bHotbarSlot = SlotIndex < HotbarSlotCount;
 	if (bHotbarSlot && SlotIndex == SelectedHotbarSlot)
 	{
-		return FLinearColor(0.17f, 0.21f, 0.15f, 1.0f);
+		return FLinearColor(0.005f, 0.005f, 0.005f, 1.0f);
 	}
 
-	return FLinearColor(0.12f, 0.15f, 0.12f, bHotbarSlot ? 0.98f : 1.0f);
+	return FLinearColor(0.005f, 0.005f, 0.005f, 1.0f);
 }
 
 void UGreenhouseInventoryWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -557,4 +707,19 @@ void UGreenhouseInventoryWidget::GiveLily()
 void UGreenhouseInventoryWidget::GiveWateringCan()
 {
 	AddItem(EGreenhouseInventoryItem::WateringCan);
+}
+
+void UGreenhouseInventoryWidget::GiveEmptyPot()
+{
+	AddItem(EGreenhouseInventoryItem::EmptyPot);
+}
+
+void UGreenhouseInventoryWidget::GiveSoilBag()
+{
+	AddItem(EGreenhouseInventoryItem::SoilBag);
+}
+
+void UGreenhouseInventoryWidget::GiveFertilizerBag()
+{
+	AddItem(EGreenhouseInventoryItem::FertilizerBag);
 }

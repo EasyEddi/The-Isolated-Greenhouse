@@ -33,19 +33,21 @@ Bereits vorhanden:
 - Halle mit Boden, Waenden, Licht und erster Einrichtung.
 - C++-Grundsysteme fuer PlayerController, GameMode, Inventory, Held Items und Planting Plot.
 - Inventar mit 5 Hotbar-Slots und 3x9 Inventar-Slots.
-- Debug UI mit `Give lily` und `Give watering can`.
-- Lily stackt bis 10 pro Slot.
+- Debug UI mit `Give lily`, `Give watering can`, `Give empty pot`, `Give soil bag` und `Give fertilizer bag`.
+- Lily, Empty Pot, Soil Bag und Fertilizer Bag stacken bis 10 pro Slot.
 - Watering Can ist einzigartig und soll nicht mehrfach ins Inventar gegeben werden.
 - Items koennen sichtbar in der Hand gehalten werden.
 - Lily kann am Planting Plot gepflanzt werden und waechst ueber einige Sekunden sichtbar.
-- Erste `.fbx` Models und importierte Unreal-Assets liegen im Projekt.
+- Inventar-Items verwenden echte 3D-Mesh-Previews statt nur vereinfachter 2D-Symbole.
+- Lily, erstes Lily-Offshoot-Asset, Watering Can, Empty Pot, Soil Bag und Fertilizer Bag liegen als importierte Unreal-Assets im Projekt.
+- Soil Bag und Fertilizer Bag sind in `Content/models/equipment/...` mit sauberen Materialslots und reparierten Front-Labels importiert.
 
 Noch nicht final:
 
 - Planting Plot ist noch ein Platzhalter und soll spaeter visuell ersetzt werden.
 - Computer-/Order-/Shop-System ist noch nicht final.
 - Watering Can hat noch keine finale Gameplay-Funktion.
-- Pflanzenpflege, Ableger schneiden, Bestellungen, Geld und Shop sind noch auszubauen.
+- Pflanzenpflege, Ableger schneiden, Lily-Offshoot-Gameplay, Bestellungen, Geld und Shop sind noch auszubauen.
 - Map/Interior entwickelt sich weiter und kann manuell im Editor angepasst werden.
 
 ## Wie das Spiel gebaut wird
@@ -124,6 +126,7 @@ Regeln:
 - Keine Tools/Pflanzen/Gameplay-Props generieren, wenn der User sagt, dass Tarek diese Inhalte macht.
 - Statische Map bedeutet: Boden, Waende, Licht, Spawnpoint, Hallenform, statische Einrichtung.
 - Pflanzen, Tools und Items sind Gameplay-Inhalte und nur anfassen, wenn die Aufgabe es verlangt.
+- Bei Soil/Fertilizer Bag Fixes den vom User gesetzten Source-/Raw-Ordner `game/UnrealProject/models/equipment/` nicht ueberschreiben, wenn er das untersagt; dann nur die importierten Assets unter `game/UnrealProject/Content/models/equipment/` bearbeiten.
 
 ## C++ Regeln
 

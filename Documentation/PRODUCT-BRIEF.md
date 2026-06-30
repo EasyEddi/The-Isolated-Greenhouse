@@ -35,11 +35,19 @@ Der Spieler baut nach und nach eine groessere Pflanzenzucht auf, verkauft Ablege
 - First-Person-Bewegung funktioniert.
 - Spawnpoint und Map-Grundform existieren.
 - Inventar mit 5 Hotbar-Slots und 3x9 Inventar-Slots existiert.
-- Debug-Buttons koennen Lily und Watering Can geben.
-- Lily stackt bis 10 pro Slot.
+- Inventar-Items werden als echte 3D-Mesh-Previews angezeigt.
+- Debug-Buttons koennen Lily, Watering Can, Empty Pot, Soil Bag und Fertilizer Bag geben.
+- Lily, Empty Pot, Soil Bag und Fertilizer Bag stacken bis 10 pro Slot.
 - Watering Can ist einzigartig.
 - Lily kann am Planting Plot gepflanzt werden.
 - Gepflanzte Lily waechst ueber Zeit sichtbar.
+
+## Aktueller Asset-Stand
+
+- Lily, Lily-Offshoot, Watering Can, Empty Pot, Soil Bag und Fertilizer Bag liegen als importierte Assets im Unreal-Projekt.
+- Soil Bag und Fertilizer Bag wurden nach dem Blender/Unreal-Import mit sauberen Unreal-Materialslots versehen.
+- Die Front-Labels von Soil Bag und Fertilizer Bag sind aktuell als einfache saubere Mesh-Decals im Content-FBX repariert.
+- Das Lily-Offshoot-Asset ist visuell vorhanden, aber noch nicht als finaler Ableger-Gameplay-Loop angeschlossen.
 
 ## MVP
 
@@ -55,6 +63,7 @@ Der Spieler baut nach und nach eine groessere Pflanzenzucht auf, verkauft Ablege
 ### Danach
 
 - Watering Can als Pflege-Interaktion verwenden.
+- Ableger schneiden und Lily-Offshoot in den Gameplay-Loop einbinden.
 - Computer/Order-System anschliessen.
 - Einfache Bestellung abschliessen.
 - Geld/Shop erst einbauen, wenn Planting und Order-Loop stabil sind.

@@ -10,7 +10,10 @@ Dieses Dokument beschreibt den aktuellen Arbeitsplan fuer den Unreal-Prototypen 
 - Das Projekt nutzt C++ fuer Grundsysteme und Unreal-Assets/Blueprints fuer Gameplay-nahe Inhalte.
 - First-Person-Bewegung, Inventar, Hotbar, Debug-Give-Buttons und ein erster Lily-Planting-Loop existieren.
 - Die Halle ist als einfache statische Map aufgebaut: Boden, Waende, Licht, Spawnpoint und erste Einrichtungsobjekte.
-- Lily und Watering Can existieren als Items. Lily stackt bis 10 pro Slot; Watering Can ist einzigartig.
+- Lily, Watering Can, Empty Pot, Soil Bag und Fertilizer Bag existieren als Items. Lily, Empty Pot, Soil Bag und Fertilizer Bag stacken bis 10 pro Slot; Watering Can ist einzigartig.
+- Inventar-Items nutzen echte 3D-Mesh-Previews.
+- Lily-Offshoot existiert als erstes importiertes Asset, ist aber noch nicht an Ableger-Gameplay angeschlossen.
+- Soil Bag und Fertilizer Bag sind als Content-Assets mit sauberen Unreal-Materialslots und reparierten Front-Labels importiert.
 
 ## MVP-Fokus
 
@@ -27,7 +30,8 @@ Der naechste spielbare MVP soll nicht das ganze Spiel abbilden. Ziel ist ein kur
 
 - Pflanz-Interaktion robuster machen: Feedback anzeigen, wenn keine Lily ausgewaehlt ist.
 - Planting Plot visuell ersetzen: kein Checker-Platzhalter mehr.
-- Gewaechshaus-Model sauber in der vorgesehenen Zone platzieren.
+- Lily-Offshoot in den naechsten Pflanzen-/Ableger-Loop einbinden.
+- Equipment-Bags im Editor/in PIE visuell gegenpruefen und nur noch feinpolishen, falls Screenshots konkrete Fehler zeigen.
 - Computer-/Order-System als naechsten separaten Loop planen.
 - Watering Can spaeter fuer Pflege/Wasser-Interaktion nutzen.
 - Map-Polish nur in kleinen Schritten: keine grossen Generator-Rewrites ohne vorherigen `git status`.
@@ -47,6 +51,7 @@ Der naechste spielbare MVP soll nicht das ganze Spiel abbilden. Ziel ist ein kur
 - Vor jeder Unreal-Map- oder Asset-Aenderung `git status` pruefen.
 - Wenn jemand die Map im Editor geoeffnet und gespeichert hat, darf kein Generator blind drueberlaufen.
 - `item list.md` bleibt manuell gepflegt und wird von Agenten nicht veraendert.
+- Source-/Raw-Modelle unter `game/UnrealProject/models/...` und importierte Content-Assets unter `game/UnrealProject/Content/models/...` getrennt behandeln; bei enger Asset-Reparatur nur den vom User freigegebenen Pfad bearbeiten.
 - Fuer jeden groesseren Schritt kurz dokumentieren:
   - welche Dateien betroffen waren,
   - ob Unreal/C++ gebaut wurde,

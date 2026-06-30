@@ -1,9 +1,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/Widget.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
+#include "Components/Viewport.h"
+#include "GameFramework/Actor.h"
 #include "GreenhouseInventoryWidget.generated.h"
 
 class UBorder;
@@ -13,17 +14,62 @@ class UOverlay;
 class USizeBox;
 class UTextBlock;
 class UVerticalBox;
+class UPointLightComponent;
+class USceneComponent;
+class UStaticMesh;
+class UStaticMeshComponent;
 
 UENUM(BlueprintType)
 enum class EGreenhouseInventoryItem : uint8
 {
 	None,
 	Lily,
-	WateringCan
+	WateringCan,
+	EmptyPot,
+	SoilBag,
+	FertilizerBag
 };
 
 UCLASS()
-class THEISOLATEDGREENHOUSE_API UGreenhouseItemIconWidget : public UWidget
+class THEISOLATEDGREENHOUSE_API AGreenhouseItemPreviewActor : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AGreenhouseItemPreviewActor();
+	void SetPreviewItem(EGreenhouseInventoryItem InItem);
+
+private:
+	UPROPERTY()
+	TObjectPtr<USceneComponent> SceneRoot;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> MeshComponent;
+
+	UPROPERTY()
+	TObjectPtr<UPointLightComponent> KeyLightComponent;
+
+	UPROPERTY()
+	TObjectPtr<UPointLightComponent> FillLightComponent;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> LilyMesh;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> WateringCanMesh;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> EmptyPotMesh;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> SoilBagMesh;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> FertilizerBagMesh;
+};
+
+UCLASS()
+class THEISOLATEDGREENHOUSE_API UGreenhouseItemIconWidget : public UViewport
 {
 	GENERATED_BODY()
 
@@ -33,7 +79,11 @@ public:
 
 private:
 	EGreenhouseInventoryItem Item = EGreenhouseInventoryItem::None;
-	TSharedPtr<class SGreenhouseItemIcon> SlateIcon;
+
+	UPROPERTY()
+	TObjectPtr<AGreenhouseItemPreviewActor> PreviewActor;
+
+	void ConfigurePreviewScene();
 };
 
 UCLASS()
@@ -140,4 +190,13 @@ private:
 
 	UFUNCTION()
 	void GiveWateringCan();
+
+	UFUNCTION()
+	void GiveEmptyPot();
+
+	UFUNCTION()
+	void GiveSoilBag();
+
+	UFUNCTION()
+	void GiveFertilizerBag();
 };
