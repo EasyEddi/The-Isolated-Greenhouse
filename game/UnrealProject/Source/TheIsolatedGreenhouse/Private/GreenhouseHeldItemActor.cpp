@@ -2,6 +2,7 @@
 
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -28,6 +29,7 @@ AGreenhouseHeldItemActor::AGreenhouseHeldItemActor()
 	UStaticMesh* WateringCanMesh = LoadFirstAvailableMesh(
 		TEXT("/Game/models/equipment/Watering_Can/watering_can.watering_can"),
 		TEXT("/Game/models/furniture/Watering_Can/watering_can.watering_can"));
+	UStaticMesh* CylinderMesh = LoadFirstAvailableMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 
 	LilyMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LilyMesh"));
 	LilyMeshComponent->SetupAttachment(SceneRoot);
@@ -47,6 +49,20 @@ AGreenhouseHeldItemActor::AGreenhouseHeldItemActor()
 	WateringCanMeshComponent->SetRelativeRotation(FRotator(0.0f, 145.0f, 0.0f));
 	WateringCanMeshComponent->SetRelativeScale3D(FVector(0.32f));
 
+	WaterStreamMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WaterStreamMesh"));
+	WaterStreamMeshComponent->SetupAttachment(SceneRoot);
+	WaterStreamMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	WaterStreamMeshComponent->SetCastShadow(false);
+	WaterStreamMeshComponent->SetStaticMesh(CylinderMesh);
+	WaterStreamMeshComponent->SetRelativeScale3D(FVector(0.018f, 0.018f, 0.62f));
+	WaterStreamMeshComponent->SetVisibility(false, true);
+	if (UMaterialInstanceDynamic* WaterMaterial = WaterStreamMeshComponent->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		WaterMaterial->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.20f, 0.58f, 1.0f, 0.78f));
+		WaterMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.20f, 0.58f, 1.0f, 0.78f));
+		WaterMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.68f);
+	}
+
 	SetHeldItem(EGreenhouseInventoryItem::None);
 }
 
@@ -63,5 +79,39 @@ void AGreenhouseHeldItemActor::SetHeldItem(EGreenhouseInventoryItem Item)
 		WateringCanMeshComponent->SetVisibility(Item == EGreenhouseInventoryItem::WateringCan, true);
 	}
 
+	if (Item != EGreenhouseInventoryItem::WateringCan)
+	{
+		SetWaterEffect(EGreenhouseHeldWaterEffect::None);
+	}
+
 	SetActorHiddenInGame(Item == EGreenhouseInventoryItem::None);
+}
+
+void AGreenhouseHeldItemActor::SetWaterEffect(EGreenhouseHeldWaterEffect Effect)
+{
+	CurrentWaterEffect = Effect;
+	if (!WaterStreamMeshComponent)
+	{
+		return;
+	}
+
+	const bool bShowWater = CurrentItem == EGreenhouseInventoryItem::WateringCan && Effect != EGreenhouseHeldWaterEffect::None;
+	WaterStreamMeshComponent->SetVisibility(bShowWater, true);
+	if (!bShowWater)
+	{
+		return;
+	}
+
+	if (Effect == EGreenhouseHeldWaterEffect::Filling)
+	{
+		WaterStreamMeshComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 78.0f));
+		WaterStreamMeshComponent->SetRelativeRotation(FRotator::ZeroRotator);
+		WaterStreamMeshComponent->SetRelativeScale3D(FVector(0.016f, 0.016f, 0.72f));
+	}
+	else
+	{
+		WaterStreamMeshComponent->SetRelativeLocation(FVector(56.0f, -18.0f, -18.0f));
+		WaterStreamMeshComponent->SetRelativeRotation(FRotator(76.0f, 0.0f, 18.0f));
+		WaterStreamMeshComponent->SetRelativeScale3D(FVector(0.014f, 0.014f, 0.54f));
+	}
 }

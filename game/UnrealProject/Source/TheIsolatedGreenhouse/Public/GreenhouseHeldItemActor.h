@@ -7,6 +7,13 @@
 
 class UStaticMeshComponent;
 
+enum class EGreenhouseHeldWaterEffect : uint8
+{
+	None,
+	Pouring,
+	Filling
+};
+
 UCLASS()
 class THEISOLATEDGREENHOUSE_API AGreenhouseHeldItemActor : public AActor
 {
@@ -16,6 +23,7 @@ public:
 	AGreenhouseHeldItemActor();
 
 	void SetHeldItem(EGreenhouseInventoryItem Item);
+	void SetWaterEffect(EGreenhouseHeldWaterEffect Effect);
 
 private:
 	UPROPERTY()
@@ -27,5 +35,9 @@ private:
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> WateringCanMeshComponent;
 
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> WaterStreamMeshComponent;
+
 	EGreenhouseInventoryItem CurrentItem = EGreenhouseInventoryItem::None;
+	EGreenhouseHeldWaterEffect CurrentWaterEffect = EGreenhouseHeldWaterEffect::None;
 };

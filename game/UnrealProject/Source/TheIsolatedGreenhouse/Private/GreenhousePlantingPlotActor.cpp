@@ -22,12 +22,8 @@ AGreenhousePlantingPlotActor::AGreenhousePlantingPlotActor()
 	PlotMeshComponent->SetRelativeScale3D(FVector(0.55f, 0.55f, 0.035f));
 	PlotMeshComponent->SetCollisionProfileName(TEXT("BlockAll"));
 
-	if (UMaterialInstanceDynamic* PlotMaterial = PlotMeshComponent->CreateAndSetMaterialInstanceDynamic(0))
-	{
-		PlotMaterial->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.16f, 0.24f, 0.18f, 1.0f));
-		PlotMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.16f, 0.24f, 0.18f, 1.0f));
-		PlotMaterial->SetScalarParameterValue(TEXT("Roughness"), 0.92f);
-	}
+	PlotMaterial = PlotMeshComponent->CreateAndSetMaterialInstanceDynamic(0);
+	UpdatePlotMaterial();
 
 	LilyMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("GrowingLilyMesh"));
 	LilyMeshComponent->SetupAttachment(SceneRoot);
@@ -44,19 +40,24 @@ void AGreenhousePlantingPlotActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (!bIsGrowing || !LilyMeshComponent)
+	if (WetSecondsRemaining > 0.0f)
 	{
-		return;
+		WetSecondsRemaining = FMath::Max(0.0f, WetSecondsRemaining - DeltaSeconds);
+		UpdatePlotMaterial();
 	}
 
-	GrowthSeconds = FMath::Min(GrowthSeconds + DeltaSeconds, GrowthDuration);
-	const float Alpha = GrowthSeconds / GrowthDuration;
-	const float Scale = FMath::Lerp(InitialLilyScale, FullLilyScale, Alpha);
-	LilyMeshComponent->SetRelativeScale3D(FVector(Scale));
-
-	if (GrowthSeconds >= GrowthDuration)
+	if (bIsGrowing && LilyMeshComponent)
 	{
-		bIsGrowing = false;
+		const float GrowthRate = WetSecondsRemaining > 0.0f ? 1.55f : 1.0f;
+		GrowthSeconds = FMath::Min(GrowthSeconds + DeltaSeconds * GrowthRate, GrowthDuration);
+		const float Alpha = GrowthSeconds / GrowthDuration;
+		const float Scale = FMath::Lerp(InitialLilyScale, FullLilyScale, Alpha);
+		LilyMeshComponent->SetRelativeScale3D(FVector(Scale));
+
+		if (GrowthSeconds >= GrowthDuration)
+		{
+			bIsGrowing = false;
+		}
 	}
 }
 
@@ -85,4 +86,48 @@ bool AGreenhousePlantingPlotActor::PlantLily()
 	LilyMeshComponent->SetRelativeScale3D(FVector(InitialLilyScale));
 	LilyMeshComponent->SetVisibility(true, true);
 	return true;
+}
+
+bool AGreenhousePlantingPlotActor::CanWaterAt(const FVector& PlayerLocation) const
+{
+	if (!bHasLily)
+	{
+		return false;
+	}
+
+	const FVector PlotLocation = GetActorLocation();
+	const float Distance2D = FVector::Dist2D(PlayerLocation, PlotLocation);
+	return Distance2D <= InteractionRadius;
+}
+
+bool AGreenhousePlantingPlotActor::WaterPlant(float WaterSeconds)
+{
+	if (!bHasLily)
+	{
+		return false;
+	}
+
+	WetSecondsRemaining = FMath::Max(WetSecondsRemaining, WetVisualDuration);
+	if (bIsGrowing)
+	{
+		GrowthSeconds = FMath::Min(GrowthSeconds + WaterSeconds * 0.35f, GrowthDuration);
+	}
+	UpdatePlotMaterial();
+	return true;
+}
+
+void AGreenhousePlantingPlotActor::UpdatePlotMaterial()
+{
+	if (!PlotMaterial)
+	{
+		return;
+	}
+
+	const bool bWet = WetSecondsRemaining > 0.0f;
+	const FLinearColor PlotColor = bWet
+		? FLinearColor(0.07f, 0.12f, 0.09f, 1.0f)
+		: FLinearColor(0.16f, 0.24f, 0.18f, 1.0f);
+	PlotMaterial->SetVectorParameterValue(TEXT("BaseColor"), PlotColor);
+	PlotMaterial->SetVectorParameterValue(TEXT("Color"), PlotColor);
+	PlotMaterial->SetScalarParameterValue(TEXT("Roughness"), bWet ? 0.72f : 0.92f);
 }
