@@ -311,6 +311,7 @@ void AGreenhousePlayerController::SpawnFillingWaterStreamActor()
 
 	UStaticMeshComponent* MeshComponent = FillingWaterStreamActor->GetStaticMeshComponent();
 	MeshComponent->SetStaticMesh(CylinderMesh);
+	MeshComponent->SetMobility(EComponentMobility::Movable);
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	MeshComponent->SetCastShadow(false);
 	if (UMaterialInstanceDynamic* WaterMaterial = MeshComponent->CreateAndSetMaterialInstanceDynamic(0))
@@ -419,7 +420,7 @@ void AGreenhousePlayerController::StartFillingWateringCan(const FHitResult& Fauc
 	WateringCanFillStartLiters = WateringCanLiters;
 	WateringCanFillingTransform = BuildFillingCanTransform(FaucetHit);
 	FillingWaterStartLocation = FindFaucetWaterStart(FaucetHit);
-	FillingWaterEndLocation = WateringCanFillingTransform.GetLocation() + FVector(0.0f, 0.0f, 54.0f);
+	FillingWaterEndLocation = WateringCanFillingTransform.GetLocation() + FVector(0.0f, 0.0f, 38.0f);
 
 	if (HeldItemActor)
 	{
@@ -526,8 +527,8 @@ FVector AGreenhousePlayerController::FindFaucetWaterStart(const FHitResult& Fauc
 	if (const UPrimitiveComponent* HitComponent = FaucetHit.GetComponent())
 	{
 		const FBoxSphereBounds Bounds = HitComponent->Bounds;
-		const float LowerFaucetZ = Bounds.Origin.Z - Bounds.BoxExtent.Z + 18.0f;
-		WaterStart.Z = FMath::Min(WaterStart.Z, LowerFaucetZ);
+		const float LowerFaucetZ = Bounds.Origin.Z - Bounds.BoxExtent.Z + 8.0f;
+		WaterStart.Z = FMath::Min(WaterStart.Z - 6.0f, LowerFaucetZ);
 	}
 
 	return WaterStart;
@@ -558,9 +559,16 @@ FVector AGreenhousePlayerController::FindGroundedCanLocation(const FVector& Desi
 		QueryParams.AddIgnoredActor(FaucetActor);
 	}
 
-	if (GetWorld()->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+	if (GetWorld()->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams)
+		|| GetWorld()->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, ECC_WorldStatic, QueryParams))
 	{
 		GroundedLocation.Z = GroundHit.ImpactPoint.Z + FillingCanFloorOffsetZ;
+	}
+	else if (const ACharacter* ControlledCharacter = Cast<ACharacter>(GetPawn()))
+	{
+		const UCapsuleComponent* CapsuleComponent = ControlledCharacter->GetCapsuleComponent();
+		const float PlayerFeetZ = ControlledCharacter->GetActorLocation().Z - (CapsuleComponent ? CapsuleComponent->GetScaledCapsuleHalfHeight() : 90.0f);
+		GroundedLocation.Z = PlayerFeetZ + FillingCanFloorOffsetZ;
 	}
 
 	return GroundedLocation;
@@ -588,7 +596,7 @@ void AGreenhousePlayerController::UpdateFillingWaterStream()
 	const FQuat Rotation = FQuat::FindBetweenNormals(FVector::UpVector, Direction);
 	FillingWaterStreamActor->SetActorLocation(Start + WaterVector * 0.5f);
 	FillingWaterStreamActor->SetActorRotation(Rotation);
-	FillingWaterStreamActor->SetActorScale3D(FVector(0.018f, 0.018f, Length / 100.0f));
+	FillingWaterStreamActor->SetActorScale3D(FVector(0.055f, 0.055f, Length / 100.0f));
 	FillingWaterStreamActor->SetActorHiddenInGame(false);
 }
 

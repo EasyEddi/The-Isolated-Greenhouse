@@ -30,7 +30,7 @@ private:
 	static constexpr float MaxWateringCanLiters = 10.0f;
 	static constexpr float WateringCanFillDuration = 7.0f;
 	static constexpr float WateringLitersPerSecond = 1.15f;
-	static constexpr float FillingCanFloorOffsetZ = 34.0f;
+	static constexpr float FillingCanFloorOffsetZ = 12.0f;
 
 	UPROPERTY()
 	TObjectPtr<UGreenhouseInventoryWidget> InventoryWidget;
