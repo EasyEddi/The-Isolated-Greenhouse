@@ -68,6 +68,7 @@ private:
 	void ToggleInventory();
 	void HandleInteractOrInventory();
 	bool TryPlantSelectedLily();
+	void HandleComputerShopPressed();
 	void HandleWateringCanFillPressed();
 	bool TryStartFillingSelectedWateringCan();
 	void HandleWateringCanPressed();
@@ -84,6 +85,7 @@ private:
 	bool HasSelectedWateringCan() const;
 	bool TraceForInteraction(FHitResult& OutHit) const;
 	bool IsFaucetHit(const FHitResult& Hit) const;
+	bool IsComputerScreenHit(const FHitResult& Hit) const;
 	void StartFillingWateringCan(const FHitResult& FaucetHit);
 	void FinishFillingWateringCan();
 	void StartPouringWater(const FHitResult& InteractionHit);
