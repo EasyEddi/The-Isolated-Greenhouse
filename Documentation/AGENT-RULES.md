@@ -82,6 +82,8 @@ Vor jeder Arbeit:
 git status --short --branch
 ```
 
+Zusaetzlich zu Beginn jedes neuen Prompts kurz `Documentation/screenshots/` auf neue Dateien pruefen. Bei visuellen Bugs, UI, Assets, MapCheck-Screenshots oder unklaren In-Editor-Zustaenden immer die neuesten Screenshots zuerst anschauen und als aktuelle Quelle der Wahrheit behandeln.
+
 Wenn lokale Aenderungen existieren:
 
 - nicht resetten,

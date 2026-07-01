@@ -27,7 +27,9 @@ enum class EGreenhouseInventoryItem : uint8
 	WateringCan,
 	EmptyPot,
 	SoilBag,
-	FertilizerBag
+	FertilizerBag,
+	Trowel,
+	Secateur
 };
 
 UCLASS()
@@ -66,6 +68,12 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UStaticMesh> FertilizerBagMesh;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> TrowelMesh;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> SecateurMesh;
 };
 
 UCLASS()
@@ -202,4 +210,10 @@ private:
 
 	UFUNCTION()
 	void GiveFertilizerBag();
+
+	UFUNCTION()
+	void GiveTrowel();
+
+	UFUNCTION()
+	void GiveSecateur();
 };

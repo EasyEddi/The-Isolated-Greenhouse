@@ -12,6 +12,7 @@ Dieses Dokument beschreibt den aktuellen Arbeitsplan fuer den Unreal-Prototypen 
 - Die Halle ist als einfache statische Map aufgebaut: Boden, Waende, Licht, Spawnpoint und erste Einrichtungsobjekte.
 - Lily, Watering Can, Empty Pot, Soil Bag und Fertilizer Bag existieren als Items. Lily, Empty Pot, Soil Bag und Fertilizer Bag stacken bis 10 pro Slot; Watering Can ist einzigartig.
 - Inventar-Items nutzen echte 3D-Mesh-Previews.
+- Empty Pots koennen per `F` auf passenden Gewaechshaus- und Storage-Shelf-Pot-Slots platziert werden.
 - Lily-Offshoot existiert als erstes importiertes Asset, ist aber noch nicht an Ableger-Gameplay angeschlossen.
 - Soil Bag und Fertilizer Bag sind als Content-Assets mit sauberen Unreal-Materialslots und reparierten Front-Labels importiert.
 

@@ -18,6 +18,8 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OBJ_SOURCE_DIR = os.path.join(PROJECT_ROOT, "OBJ_Models")
 BRICK_WALL_SOURCE = os.path.join(PROJECT_ROOT, "SourceTextures", "Walls", "brick_wall.png")
 IMPORTED_MODEL_DIR = "/Game/ImportedModels"
+FULL_MAP_REGENERATION_ENABLED = False
+SPAWN_GENERATED_HALL_WALLS = False
 
 
 def load_asset(path):
@@ -692,6 +694,10 @@ def add_rectangular_hall():
         "floor",
     )
 
+    if not SPAWN_GENERATED_HALL_WALLS:
+        unreal.log("Skipped old generated cube hall walls; 3D wall model actors are preserved in the map.")
+        return
+
     cube(
         "Hall_Back_wall_damaged_brick",
         (-half_length - half_wall, 0, wall_height / 2),
@@ -827,6 +833,11 @@ def main():
         unreal.EditorLevelLibrary.load_level(PROJECT_MAP)
     else:
         unreal.EditorLevelLibrary.new_level(PROJECT_MAP)
+
+    if not FULL_MAP_REGENERATION_ENABLED:
+        unreal.log("Full map regeneration is disabled; preserving existing actors and 3D wall model placements.")
+        unreal.SystemLibrary.execute_console_command(None, "QUIT_EDITOR")
+        return
 
     for actor in unreal.EditorLevelLibrary.get_all_level_actors():
         unreal.EditorLevelLibrary.destroy_actor(actor)

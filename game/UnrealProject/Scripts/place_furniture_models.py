@@ -20,6 +20,7 @@ WALL_HEIGHT = 600.0
 WALL_THICKNESS = 120.0
 FLOOR_THICKNESS = 20.0
 PRESERVE_EXISTING_GENERATED_ACTORS = True
+SPAWN_GENERATED_HALL_WALLS = False
 
 MAIN_X_MIN = -MAIN_LENGTH / 2.0
 MAIN_X_MAX = MAIN_LENGTH / 2.0
@@ -86,7 +87,7 @@ FURNITURE = [
     },
     {
         "key": "storage_shelf_01",
-        "asset": "/Game/models/furniture/Storage_Shelf/storge_shelf",
+        "asset": "/Game/models/furniture/Storage_Shelf/storage_shelf",
         "label": "Storage_Shelf_01",
         "location": (-377.315, 739.827, 0.0),
         "rotation": (0.0, 90.0, 0.0),
@@ -241,8 +242,8 @@ def find_actor_by_label(label):
 
 
 def destroy_generated_hall_shell():
-    if PRESERVE_EXISTING_GENERATED_ACTORS:
-        unreal.log("Preserving generated hall shell actors; no Hall_/WallDamage_ actors were removed.")
+    if PRESERVE_EXISTING_GENERATED_ACTORS or not SPAWN_GENERATED_HALL_WALLS:
+        unreal.log("Preserving generated hall shell actors; generated cube walls are disabled.")
         return 0
 
     removed = 0
@@ -390,13 +391,15 @@ def spawn_vertical_wall(label, x_inner, outward_sign, center_y, length, material
 
 
 def resize_hall_shell():
-    texture = import_source_texture("T_Hall_Brick_Wall", BRICK_WALL_SOURCE)
     floor_material = load_material("/Game/Art/Materials/M_Hall_Rubber_Floor")
-    wall_lengths = sorted({MAIN_LENGTH, MAIN_WIDTH, SIDE_WIDTH, SIDE_LENGTH, FAUCET_WALL_LENGTH})
-    wall_materials = {
-        length: material_for_wall_length(f"M_Hall_Brick_Wall_{int(length)}", texture, length)
-        for length in wall_lengths
-    }
+    wall_materials = {}
+    if SPAWN_GENERATED_HALL_WALLS:
+        texture = import_source_texture("T_Hall_Brick_Wall", BRICK_WALL_SOURCE)
+        wall_lengths = sorted({MAIN_LENGTH, MAIN_WIDTH, SIDE_WIDTH, SIDE_LENGTH, FAUCET_WALL_LENGTH})
+        wall_materials = {
+            length: material_for_wall_length(f"M_Hall_Brick_Wall_{int(length)}", texture, length)
+            for length in wall_lengths
+        }
 
     destroy_generated_hall_shell()
 
@@ -416,6 +419,10 @@ def resize_hall_shell():
         SIDE_WIDTH,
         floor_material,
     )
+
+    if not SPAWN_GENERATED_HALL_WALLS:
+        unreal.log("Skipped old generated cube hall walls; existing 3D wall model actors are preserved.")
+        return
 
     spawn_horizontal_wall(
         "Hall_Wall_bottom_green_750",

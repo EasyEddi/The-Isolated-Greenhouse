@@ -39,6 +39,7 @@ Der Spieler baut nach und nach eine groessere Pflanzenzucht auf, verkauft Ablege
 - Debug-Buttons koennen Lily, Watering Can, Empty Pot, Soil Bag und Fertilizer Bag geben.
 - Lily, Empty Pot, Soil Bag und Fertilizer Bag stacken bis 10 pro Slot.
 - Watering Can ist einzigartig.
+- Empty Pots koennen auf passende Gewaechshaus- und Storage-Shelf-Pot-Slots gestellt werden.
 - Lily kann am Planting Plot gepflanzt werden.
 - Gepflanzte Lily waechst ueber Zeit sichtbar.
 

@@ -47,6 +47,12 @@ private:
 	TObjectPtr<UStaticMeshComponent> FertilizerBagMeshComponent;
 
 	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> TrowelMeshComponent;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> SecateurMeshComponent;
+
+	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> WaterStreamMeshComponent;
 
 	UPROPERTY()

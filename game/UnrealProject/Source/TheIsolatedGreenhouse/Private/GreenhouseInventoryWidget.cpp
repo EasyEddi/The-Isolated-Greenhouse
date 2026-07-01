@@ -39,6 +39,13 @@ bool IsStackableInventoryItem(EGreenhouseInventoryItem Item)
 		|| Item == EGreenhouseInventoryItem::FertilizerBag;
 }
 
+bool IsUniqueInventoryItem(EGreenhouseInventoryItem Item)
+{
+	return Item == EGreenhouseInventoryItem::WateringCan
+		|| Item == EGreenhouseInventoryItem::Trowel
+		|| Item == EGreenhouseInventoryItem::Secateur;
+}
+
 constexpr float InventoryPreviewFillWorldSize = 88.0f;
 const FVector InventoryPreviewCameraLocation(-145.0f, 0.0f, 8.0f);
 
@@ -55,6 +62,10 @@ FRotator GetInventoryPreviewRotation(EGreenhouseInventoryItem Item)
 	case EGreenhouseInventoryItem::SoilBag:
 	case EGreenhouseInventoryItem::FertilizerBag:
 		return FRotator(0.0f, 90.0f, 0.0f);
+	case EGreenhouseInventoryItem::Trowel:
+		return FRotator(0.0f, 135.0f, -18.0f);
+	case EGreenhouseInventoryItem::Secateur:
+		return FRotator(0.0f, 130.0f, -8.0f);
 	default:
 		return FRotator::ZeroRotator;
 	}
@@ -122,6 +133,8 @@ AGreenhouseItemPreviewActor::AGreenhouseItemPreviewActor()
 		TEXT("/Game/models/equipment/soil/ornament plants/ornament_plants_soil.ornament_plants_soil"));
 	FertilizerBagMesh = LoadFirstAvailableInventoryMesh(
 		TEXT("/Game/models/equipment/fertilizer/ornament_plants/ornament_plants_fertilizer.ornament_plants_fertilizer"));
+	TrowelMesh = LoadFirstAvailableInventoryMesh(TEXT("/Game/models/equipment/Trowel/trowel.trowel"));
+	SecateurMesh = LoadFirstAvailableInventoryMesh(TEXT("/Game/models/equipment/Secateur/Secateur/secateur.secateur"));
 
 	SetPreviewItem(EGreenhouseInventoryItem::None);
 }
@@ -154,6 +167,14 @@ void AGreenhouseItemPreviewActor::SetPreviewItem(EGreenhouseInventoryItem InItem
 	else if (InItem == EGreenhouseInventoryItem::FertilizerBag)
 	{
 		Mesh = FertilizerBagMesh;
+	}
+	else if (InItem == EGreenhouseInventoryItem::Trowel)
+	{
+		Mesh = TrowelMesh;
+	}
+	else if (InItem == EGreenhouseInventoryItem::Secateur)
+	{
+		Mesh = SecateurMesh;
 	}
 
 	MeshComponent->SetStaticMesh(Mesh);
@@ -382,6 +403,12 @@ void UGreenhouseInventoryWidget::BuildInterface()
 	UButton* FertilizerBagButton = CreateDebugButton(TEXT("GiveFertilizerBagButton"), FText::FromString(TEXT("Give fertilizer bag")), GivePanel);
 	FertilizerBagButton->OnClicked.AddDynamic(this, &UGreenhouseInventoryWidget::GiveFertilizerBag);
 
+	UButton* TrowelButton = CreateDebugButton(TEXT("GiveTrowelButton"), FText::FromString(TEXT("Give trowel")), GivePanel);
+	TrowelButton->OnClicked.AddDynamic(this, &UGreenhouseInventoryWidget::GiveTrowel);
+
+	UButton* SecateurButton = CreateDebugButton(TEXT("GiveSecateurButton"), FText::FromString(TEXT("Give secateur")), GivePanel);
+	SecateurButton->OnClicked.AddDynamic(this, &UGreenhouseInventoryWidget::GiveSecateur);
+
 	CursorPreview = CreateSlotFrame(INDEX_NONE, FVector2D(70.0f, 70.0f));
 	CursorPreview->SetVisibility(ESlateVisibility::HitTestInvisible);
 	CursorPreview->SetRenderOpacity(0.92f);
@@ -571,7 +598,7 @@ bool UGreenhouseInventoryWidget::ConsumeSelectedHotbarItem(EGreenhouseInventoryI
 
 void UGreenhouseInventoryWidget::AddItem(EGreenhouseInventoryItem Item)
 {
-	if (Item == EGreenhouseInventoryItem::WateringCan && HasItem(Item))
+	if (IsUniqueInventoryItem(Item) && HasItem(Item))
 	{
 		return;
 	}
@@ -736,4 +763,14 @@ void UGreenhouseInventoryWidget::GiveSoilBag()
 void UGreenhouseInventoryWidget::GiveFertilizerBag()
 {
 	AddItem(EGreenhouseInventoryItem::FertilizerBag);
+}
+
+void UGreenhouseInventoryWidget::GiveTrowel()
+{
+	AddItem(EGreenhouseInventoryItem::Trowel);
+}
+
+void UGreenhouseInventoryWidget::GiveSecateur()
+{
+	AddItem(EGreenhouseInventoryItem::Secateur);
 }

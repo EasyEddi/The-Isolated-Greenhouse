@@ -55,6 +55,154 @@ float GetFillingCanYawDegrees()
 	constexpr float FixedLeftFacingYawDegrees = 125.0f;
 	return FixedLeftFacingYawDegrees;
 }
+
+const FVector GreenhousePotSlotLocalCenters[] = {
+	FVector(-2139.1f, -1216.5f, 911.6f),
+	FVector(-1347.1f, -1216.5f, 911.6f),
+	FVector(-555.1f, -1216.5f, 911.6f),
+	FVector(236.9f, -1216.5f, 911.6f),
+	FVector(1028.9f, -1216.5f, 911.6f),
+	FVector(-2139.1f, 1180.9f, 911.6f),
+	FVector(-1347.1f, 1180.9f, 911.6f),
+	FVector(-555.1f, 1180.9f, 911.6f),
+	FVector(236.9f, 1180.9f, 911.6f),
+	FVector(1028.9f, 1180.9f, 911.6f)
+};
+
+const FVector StorageShelfPotSlotLocalCenters[] = {
+	FVector(5.4f, 2.0f, 262.75f),
+	FVector(62.4f, 2.0f, 262.75f),
+	FVector(119.4f, 2.0f, 262.75f)
+};
+
+struct FStorageShelfPlacementSlotDefinition
+{
+	FVector InteractionLocalCenter;
+	FVector PlacementLocalLocation;
+};
+
+const FStorageShelfPlacementSlotDefinition StorageShelfSoilBagSlotDefinitions[] = {
+	{ FVector(-82.0f, 3.0f, 96.0f), FVector(-82.0f, 9.0f, 42.0f) }
+};
+
+const FStorageShelfPlacementSlotDefinition StorageShelfFertilizerBagSlotDefinitions[] = {
+	{ FVector(82.0f, 3.0f, 96.0f), FVector(82.0f, 9.0f, 42.0f) }
+};
+
+const FStorageShelfPlacementSlotDefinition StorageShelfToolSlotDefinitions[] = {
+	{ FVector(-116.0f, 2.0f, 262.75f), FVector(-116.0f, 2.0f, 266.0f) },
+	{ FVector(-72.0f, 2.0f, 262.75f), FVector(-72.0f, 2.0f, 266.0f) }
+};
+
+constexpr float PotPlacementScale = 0.32f;
+constexpr float PotPlacementSnapRadiusCm = 58.0f;
+constexpr float PotPlacementMaxVerticalOffsetCm = 45.0f;
+constexpr float PotPlacementBenchFrontOffsetCm = 6.0f;
+constexpr float PotPlacementLeftBenchBackCorrectionCm = 6.0f;
+constexpr float PotPlacementSurfaceLiftCm = 1.0f;
+constexpr int32 StorageShelfPotSlotIndexOffset = 100;
+constexpr int32 StorageShelfSoilBagSlotIndexOffset = 200;
+constexpr int32 StorageShelfFertilizerBagSlotIndexOffset = 220;
+constexpr int32 StorageShelfToolSlotIndexOffset = 240;
+constexpr float StorageShelfPotPlacementSnapRadiusCm = 42.0f;
+constexpr float StorageShelfPotPlacementMaxVerticalOffsetCm = 36.0f;
+constexpr float StorageShelfBagPlacementSnapRadiusCm = 96.0f;
+constexpr float StorageShelfBagPlacementMaxVerticalOffsetCm = 82.0f;
+constexpr float StorageShelfToolPlacementSnapRadiusCm = 46.0f;
+constexpr float StorageShelfToolPlacementMaxVerticalOffsetCm = 34.0f;
+
+bool IsGreenhouseMesh(const UStaticMesh* Mesh)
+{
+	if (!Mesh)
+	{
+		return false;
+	}
+
+	return Mesh->GetPathName().Contains(TEXT("greenhouse_5x3m"), ESearchCase::IgnoreCase);
+}
+
+bool IsStorageShelfMesh(const UStaticMesh* Mesh)
+{
+	if (!Mesh)
+	{
+		return false;
+	}
+
+	const FString MeshPath = Mesh->GetPathName();
+	return MeshPath.Contains(TEXT("Storage_Shelf"), ESearchCase::IgnoreCase)
+		|| MeshPath.Contains(TEXT("storage_shelf"), ESearchCase::IgnoreCase)
+		|| MeshPath.Contains(TEXT("storge_shelf"), ESearchCase::IgnoreCase);
+}
+
+UStaticMesh* LoadEmptyPotPlacementMesh()
+{
+	if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/models/equipment/pots/ornament_plants/empty/ornament_plants_pot_empty.ornament_plants_pot_empty")))
+	{
+		return Mesh;
+	}
+
+	return LoadObject<UStaticMesh>(nullptr, TEXT("/Game/models/equipment/pots/ornament plants/empty/ornament_plants_pot_empty.ornament_plants_pot_empty"));
+}
+
+UStaticMesh* LoadPlacementMeshForItem(EGreenhouseInventoryItem Item)
+{
+	switch (Item)
+	{
+	case EGreenhouseInventoryItem::EmptyPot:
+		return LoadEmptyPotPlacementMesh();
+	case EGreenhouseInventoryItem::SoilBag:
+		return LoadObject<UStaticMesh>(nullptr, TEXT("/Game/models/equipment/soil/ornament_plants/ornament_plants_soil.ornament_plants_soil"));
+	case EGreenhouseInventoryItem::FertilizerBag:
+		return LoadObject<UStaticMesh>(nullptr, TEXT("/Game/models/equipment/fertilizer/ornament_plants/ornament_plants_fertilizer.ornament_plants_fertilizer"));
+	case EGreenhouseInventoryItem::Trowel:
+		return LoadObject<UStaticMesh>(nullptr, TEXT("/Game/models/equipment/Trowel/trowel.trowel"));
+	case EGreenhouseInventoryItem::Secateur:
+		return LoadObject<UStaticMesh>(nullptr, TEXT("/Game/models/equipment/Secateur/Secateur/secateur.secateur"));
+	default:
+		return nullptr;
+	}
+}
+
+bool IsPlaceableInventoryItem(EGreenhouseInventoryItem Item)
+{
+	return Item == EGreenhouseInventoryItem::EmptyPot
+		|| Item == EGreenhouseInventoryItem::SoilBag
+		|| Item == EGreenhouseInventoryItem::FertilizerBag
+		|| Item == EGreenhouseInventoryItem::Trowel
+		|| Item == EGreenhouseInventoryItem::Secateur;
+}
+
+float GetPlacementScaleForItem(EGreenhouseInventoryItem Item)
+{
+	switch (Item)
+	{
+	case EGreenhouseInventoryItem::SoilBag:
+	case EGreenhouseInventoryItem::FertilizerBag:
+		return 0.26f;
+	case EGreenhouseInventoryItem::Trowel:
+		return 0.34f;
+	case EGreenhouseInventoryItem::Secateur:
+		return 0.42f;
+	default:
+		return PotPlacementScale;
+	}
+}
+
+FRotator GetStorageShelfPlacementRotation(EGreenhouseInventoryItem Item, float ShelfYawDegrees)
+{
+	switch (Item)
+	{
+	case EGreenhouseInventoryItem::SoilBag:
+	case EGreenhouseInventoryItem::FertilizerBag:
+		return FRotator(0.0f, ShelfYawDegrees + 180.0f, 0.0f);
+	case EGreenhouseInventoryItem::Trowel:
+		return FRotator(0.0f, ShelfYawDegrees + 90.0f, -72.0f);
+	case EGreenhouseInventoryItem::Secateur:
+		return FRotator(0.0f, ShelfYawDegrees + 90.0f, -66.0f);
+	default:
+		return FRotator(0.0f, ShelfYawDegrees, 0.0f);
+	}
+}
 }
 
 AGreenhousePlayerController::AGreenhousePlayerController()
@@ -213,6 +361,63 @@ void AGreenhousePlayerController::HandleInteractOrInventory()
 	ToggleInventory();
 }
 
+bool AGreenhousePlayerController::TryPlaceSelectedItem()
+{
+	if (!InventoryWidget || !GetWorld())
+	{
+		return false;
+	}
+
+	const EGreenhouseInventoryItem SelectedItem = InventoryWidget->GetSelectedHotbarItem();
+	if (!IsPlaceableInventoryItem(SelectedItem))
+	{
+		return false;
+	}
+
+	FHitResult InteractionHit;
+	if (!TraceForInteraction(InteractionHit) || !InteractionHit.bBlockingHit)
+	{
+		return false;
+	}
+
+	FTransform PlacementTransform;
+	int32 SlotIndex = INDEX_NONE;
+	if (!FindItemPlacementSlot(SelectedItem, InteractionHit, PlacementTransform, SlotIndex))
+	{
+		return false;
+	}
+
+	UStaticMesh* PlacementMesh = LoadPlacementMeshForItem(SelectedItem);
+	if (!PlacementMesh || !InventoryWidget->ConsumeSelectedHotbarItem(SelectedItem))
+	{
+		return false;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = this;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AStaticMeshActor* PlacedActor = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), PlacementTransform, SpawnParameters);
+	if (!PlacedActor)
+	{
+		InventoryWidget->AddItem(SelectedItem);
+		return false;
+	}
+
+	if (UStaticMeshComponent* MeshComponent = PlacedActor->GetStaticMeshComponent())
+	{
+		MeshComponent->SetMobility(EComponentMobility::Movable);
+		MeshComponent->SetStaticMesh(PlacementMesh);
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MeshComponent->SetCastShadow(true);
+	}
+
+	PlacedPotActors.Add(PlacedActor);
+	OccupiedPotSlotIndices.Add(SlotIndex);
+	UpdateHeldItemActor();
+	return true;
+}
+
 bool AGreenhousePlayerController::TryPlantSelectedLily()
 {
 	if (!InventoryWidget || InventoryWidget->GetSelectedHotbarItem() != EGreenhouseInventoryItem::Lily)
@@ -261,9 +466,211 @@ bool AGreenhousePlayerController::TryPlantSelectedLily()
 	return bPlanted;
 }
 
+bool AGreenhousePlayerController::FindItemPlacementSlot(EGreenhouseInventoryItem SelectedItem, const FHitResult& InteractionHit, FTransform& OutPlacementTransform, int32& OutSlotIndex) const
+{
+	const UStaticMeshComponent* HitMeshComponent = Cast<UStaticMeshComponent>(InteractionHit.GetComponent());
+	if (!HitMeshComponent)
+	{
+		return false;
+	}
+
+	const UStaticMesh* HitMesh = HitMeshComponent->GetStaticMesh();
+	const FTransform ComponentTransform = HitMeshComponent->GetComponentTransform();
+	const FVector HitLocation = InteractionHit.ImpactPoint;
+
+	if (IsGreenhouseMesh(HitMesh))
+	{
+		if (SelectedItem != EGreenhouseInventoryItem::EmptyPot)
+		{
+			return false;
+		}
+
+		const float MaxDistanceSq = FMath::Square(PotPlacementSnapRadiusCm);
+
+		int32 ClosestSlotIndex = INDEX_NONE;
+		float ClosestDistanceSq = TNumericLimits<float>::Max();
+		FVector ClosestSlotLocation = FVector::ZeroVector;
+		for (int32 SlotIndex = 0; SlotIndex < UE_ARRAY_COUNT(GreenhousePotSlotLocalCenters); ++SlotIndex)
+		{
+			if (IsPotSlotOccupied(SlotIndex))
+			{
+				continue;
+			}
+
+			const FVector SlotLocation = ComponentTransform.TransformPosition(GreenhousePotSlotLocalCenters[SlotIndex]);
+			const float VerticalOffset = FMath::Abs(HitLocation.Z - SlotLocation.Z);
+			if (VerticalOffset > PotPlacementMaxVerticalOffsetCm)
+			{
+				continue;
+			}
+
+			const float DistanceSq = FVector::DistSquared2D(HitLocation, SlotLocation);
+			if (DistanceSq < ClosestDistanceSq)
+			{
+				ClosestDistanceSq = DistanceSq;
+				ClosestSlotIndex = SlotIndex;
+				ClosestSlotLocation = SlotLocation;
+			}
+		}
+
+		if (ClosestSlotIndex == INDEX_NONE || ClosestDistanceSq > MaxDistanceSq)
+		{
+			return false;
+		}
+
+		const FRotator SlotRotation(0.0f, HitMeshComponent->GetComponentRotation().Yaw, 0.0f);
+		const bool bFirstBenchRow = ClosestSlotIndex < 5;
+		const FVector LocalBenchFrontDirection = bFirstBenchRow ? FVector::YAxisVector : -FVector::YAxisVector;
+		const FVector BenchFrontDirection = ComponentTransform.TransformVectorNoScale(LocalBenchFrontDirection).GetSafeNormal();
+		const float BenchFrontOffset = bFirstBenchRow
+			? PotPlacementBenchFrontOffsetCm
+			: FMath::Max(0.0f, PotPlacementBenchFrontOffsetCm - PotPlacementLeftBenchBackCorrectionCm);
+		OutPlacementTransform = FTransform(
+			SlotRotation,
+			ClosestSlotLocation + BenchFrontDirection * BenchFrontOffset + FVector(0.0f, 0.0f, PotPlacementSurfaceLiftCm),
+			FVector(PotPlacementScale));
+		OutSlotIndex = ClosestSlotIndex;
+		return true;
+	}
+
+	if (IsStorageShelfMesh(HitMesh))
+	{
+		if (SelectedItem == EGreenhouseInventoryItem::EmptyPot)
+		{
+			const float MaxDistanceSq = FMath::Square(StorageShelfPotPlacementSnapRadiusCm);
+
+			int32 ClosestShelfSlotIndex = INDEX_NONE;
+			float ClosestDistanceSq = TNumericLimits<float>::Max();
+			FVector ClosestSlotLocation = FVector::ZeroVector;
+			for (int32 SlotIndex = 0; SlotIndex < UE_ARRAY_COUNT(StorageShelfPotSlotLocalCenters); ++SlotIndex)
+			{
+				const int32 OccupancyIndex = StorageShelfPotSlotIndexOffset + SlotIndex;
+				if (IsPotSlotOccupied(OccupancyIndex))
+				{
+					continue;
+				}
+
+				const FVector SlotLocation = ComponentTransform.TransformPosition(StorageShelfPotSlotLocalCenters[SlotIndex]);
+				const float VerticalOffset = FMath::Abs(HitLocation.Z - SlotLocation.Z);
+				if (VerticalOffset > StorageShelfPotPlacementMaxVerticalOffsetCm)
+				{
+					continue;
+				}
+
+				const float DistanceSq = FVector::DistSquared2D(HitLocation, SlotLocation);
+				if (DistanceSq < ClosestDistanceSq)
+				{
+					ClosestDistanceSq = DistanceSq;
+					ClosestShelfSlotIndex = SlotIndex;
+					ClosestSlotLocation = SlotLocation;
+				}
+			}
+
+			if (ClosestShelfSlotIndex == INDEX_NONE || ClosestDistanceSq > MaxDistanceSq)
+			{
+				return false;
+			}
+
+			const FRotator SlotRotation(0.0f, HitMeshComponent->GetComponentRotation().Yaw, 0.0f);
+			OutPlacementTransform = FTransform(
+				SlotRotation,
+				ClosestSlotLocation + FVector(0.0f, 0.0f, PotPlacementSurfaceLiftCm),
+				FVector(PotPlacementScale));
+			OutSlotIndex = StorageShelfPotSlotIndexOffset + ClosestShelfSlotIndex;
+			return true;
+		}
+
+		const FStorageShelfPlacementSlotDefinition* SlotDefinitions = nullptr;
+		int32 SlotCount = 0;
+		int32 SlotIndexOffset = INDEX_NONE;
+		float SnapRadiusCm = 0.0f;
+		float MaxVerticalOffsetCm = 0.0f;
+
+		switch (SelectedItem)
+		{
+		case EGreenhouseInventoryItem::SoilBag:
+			SlotDefinitions = StorageShelfSoilBagSlotDefinitions;
+			SlotCount = UE_ARRAY_COUNT(StorageShelfSoilBagSlotDefinitions);
+			SlotIndexOffset = StorageShelfSoilBagSlotIndexOffset;
+			SnapRadiusCm = StorageShelfBagPlacementSnapRadiusCm;
+			MaxVerticalOffsetCm = StorageShelfBagPlacementMaxVerticalOffsetCm;
+			break;
+		case EGreenhouseInventoryItem::FertilizerBag:
+			SlotDefinitions = StorageShelfFertilizerBagSlotDefinitions;
+			SlotCount = UE_ARRAY_COUNT(StorageShelfFertilizerBagSlotDefinitions);
+			SlotIndexOffset = StorageShelfFertilizerBagSlotIndexOffset;
+			SnapRadiusCm = StorageShelfBagPlacementSnapRadiusCm;
+			MaxVerticalOffsetCm = StorageShelfBagPlacementMaxVerticalOffsetCm;
+			break;
+		case EGreenhouseInventoryItem::Trowel:
+		case EGreenhouseInventoryItem::Secateur:
+			SlotDefinitions = StorageShelfToolSlotDefinitions;
+			SlotCount = UE_ARRAY_COUNT(StorageShelfToolSlotDefinitions);
+			SlotIndexOffset = StorageShelfToolSlotIndexOffset;
+			SnapRadiusCm = StorageShelfToolPlacementSnapRadiusCm;
+			MaxVerticalOffsetCm = StorageShelfToolPlacementMaxVerticalOffsetCm;
+			break;
+		default:
+			return false;
+		}
+
+		int32 ClosestShelfSlotIndex = INDEX_NONE;
+		float ClosestDistanceSq = TNumericLimits<float>::Max();
+		FVector ClosestPlacementLocation = FVector::ZeroVector;
+		for (int32 SlotIndex = 0; SlotIndex < SlotCount; ++SlotIndex)
+		{
+			const int32 OccupancyIndex = SlotIndexOffset + SlotIndex;
+			if (IsPotSlotOccupied(OccupancyIndex))
+			{
+				continue;
+			}
+
+			const FVector InteractionSlotLocation = ComponentTransform.TransformPosition(SlotDefinitions[SlotIndex].InteractionLocalCenter);
+			const float VerticalOffset = FMath::Abs(HitLocation.Z - InteractionSlotLocation.Z);
+			if (VerticalOffset > MaxVerticalOffsetCm)
+			{
+				continue;
+			}
+
+			const float DistanceSq = FVector::DistSquared2D(HitLocation, InteractionSlotLocation);
+			if (DistanceSq < ClosestDistanceSq)
+			{
+				ClosestDistanceSq = DistanceSq;
+				ClosestShelfSlotIndex = SlotIndex;
+				ClosestPlacementLocation = ComponentTransform.TransformPosition(SlotDefinitions[SlotIndex].PlacementLocalLocation);
+			}
+		}
+
+		if (ClosestShelfSlotIndex == INDEX_NONE || ClosestDistanceSq > FMath::Square(SnapRadiusCm))
+		{
+			return false;
+		}
+
+		const FRotator SlotRotation = GetStorageShelfPlacementRotation(SelectedItem, HitMeshComponent->GetComponentRotation().Yaw);
+		OutPlacementTransform = FTransform(
+			SlotRotation,
+			ClosestPlacementLocation + FVector(0.0f, 0.0f, PotPlacementSurfaceLiftCm),
+			FVector(GetPlacementScaleForItem(SelectedItem)));
+		OutSlotIndex = SlotIndexOffset + ClosestShelfSlotIndex;
+		return true;
+	}
+
+	return false;
+}
+
+bool AGreenhousePlayerController::IsPotSlotOccupied(int32 SlotIndex) const
+{
+	return OccupiedPotSlotIndices.Contains(SlotIndex);
+}
+
 void AGreenhousePlayerController::HandleWateringCanFillPressed()
 {
 	if (InventoryWidget && InventoryWidget->IsInventoryOpen())
+	{
+		return;
+	}
+
+	if (TryPlaceSelectedItem())
 	{
 		return;
 	}
@@ -487,6 +894,13 @@ bool AGreenhousePlayerController::TraceForInteraction(FHitResult& OutHit) const
 	if (HeldItemActor)
 	{
 		QueryParams.AddIgnoredActor(HeldItemActor);
+	}
+	for (const AStaticMeshActor* PlacedPotActor : PlacedPotActors)
+	{
+		if (PlacedPotActor)
+		{
+			QueryParams.AddIgnoredActor(PlacedPotActor);
+		}
 	}
 
 	return GetWorld()->LineTraceSingleByChannel(OutHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams);

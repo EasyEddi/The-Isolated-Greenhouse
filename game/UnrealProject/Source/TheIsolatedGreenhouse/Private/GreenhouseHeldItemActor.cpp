@@ -90,6 +90,8 @@ AGreenhouseHeldItemActor::AGreenhouseHeldItemActor()
 		TEXT("/Game/models/equipment/soil/ornament plants/ornament_plants_soil.ornament_plants_soil"));
 	UStaticMesh* FertilizerBagMesh = LoadFirstAvailableMesh(
 		TEXT("/Game/models/equipment/fertilizer/ornament_plants/ornament_plants_fertilizer.ornament_plants_fertilizer"));
+	UStaticMesh* TrowelMesh = LoadFirstAvailableMesh(TEXT("/Game/models/equipment/Trowel/trowel.trowel"));
+	UStaticMesh* SecateurMesh = LoadFirstAvailableMesh(TEXT("/Game/models/equipment/Secateur/Secateur/secateur.secateur"));
 	UStaticMesh* CylinderMesh = LoadFirstAvailableMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	UStaticMesh* DropletMesh = LoadFirstAvailableMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	UMaterialInterface* WaterMaterial = LoadWaterMaterial();
@@ -113,6 +115,14 @@ AGreenhouseHeldItemActor::AGreenhouseHeldItemActor()
 	FertilizerBagMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FertilizerBagMesh"));
 	FertilizerBagMeshComponent->SetupAttachment(SceneRoot);
 	ConfigureHeldMesh(FertilizerBagMeshComponent, FertilizerBagMesh, FVector(0.0f, 0.0f, -14.0f), FRotator(0.0f, 148.0f, 0.0f), 0.25f);
+
+	TrowelMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TrowelMesh"));
+	TrowelMeshComponent->SetupAttachment(SceneRoot);
+	ConfigureHeldMesh(TrowelMeshComponent, TrowelMesh, FVector(4.0f, 0.0f, -10.0f), FRotator(0.0f, 132.0f, -24.0f), 0.34f);
+
+	SecateurMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SecateurMesh"));
+	SecateurMeshComponent->SetupAttachment(SceneRoot);
+	ConfigureHeldMesh(SecateurMeshComponent, SecateurMesh, FVector(4.0f, 0.0f, -9.0f), FRotator(0.0f, 128.0f, -12.0f), 0.42f);
 
 	WaterStreamMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WaterStreamMesh"));
 	WaterStreamMeshComponent->SetupAttachment(WateringCanMeshComponent);
@@ -179,6 +189,16 @@ void AGreenhouseHeldItemActor::SetHeldItem(EGreenhouseInventoryItem Item)
 	if (FertilizerBagMeshComponent)
 	{
 		FertilizerBagMeshComponent->SetVisibility(Item == EGreenhouseInventoryItem::FertilizerBag, true);
+	}
+
+	if (TrowelMeshComponent)
+	{
+		TrowelMeshComponent->SetVisibility(Item == EGreenhouseInventoryItem::Trowel, true);
+	}
+
+	if (SecateurMeshComponent)
+	{
+		SecateurMeshComponent->SetVisibility(Item == EGreenhouseInventoryItem::Secateur, true);
 	}
 
 	if (Item != EGreenhouseInventoryItem::WateringCan)
