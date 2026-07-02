@@ -29,4 +29,5 @@ The MVP should stay small. It does not need many plant species, login, multiplay
 - [Product Brief](Documentation/PRODUCT-BRIEF.md)
 - [Team Workflow](Documentation/TEAM-WORKFLOW.md)
 - [Agent Rules](Documentation/AGENT-RULES.md)
+- [Release Builds](Documentation/RELEASE-BUILDS.md)
 - [Original Assignment](Documentation/AUFGABE-WOCHE-2.md)
